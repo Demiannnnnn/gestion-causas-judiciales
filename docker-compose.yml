@@ -301,3 +301,5 @@ volumes:
   prometheus-data:      # Métricas de Prometheus
   grafana-data:         # Dashboards de Grafana
   frontend-node-modules: # node_modules para el frontend (evita perder módulos al montar el código)
+
+  #------------------- SERVICIO IA (falta aquí)----------------------------------
