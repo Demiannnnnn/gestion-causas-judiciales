@@ -289,3 +289,5 @@ volumes:
   documentos-uploads:   # PDFs y archivos subidos
   prometheus-data:      # Métricas de Prometheus
   grafana-data:         # Dashboards de Grafana
+
+  #------------------- SERVICIO IA (falta aquí)----------------------------------
