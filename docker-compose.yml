@@ -23,7 +23,7 @@ services:
       - "--entrypoints.web.address=:80"
     
     ports:
-      - "80:80"        # Puerto web principal
+      - "8081:80"        # Puerto web principal
       - "8080:8080"    # Dashboard de Traefik
     
     volumes:
