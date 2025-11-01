@@ -300,9 +300,8 @@ volumes:
   documentos-uploads:   # PDFs y archivos subidos
   prometheus-data:      # Métricas de Prometheus
   grafana-data:         # Dashboards de Grafana
-<<<<<<< HEAD
+
+
+  frontend-node-modules: # node_modules para el frontend (evita perder módulos al montar el código)
 
   #------------------- SERVICIO IA (falta aquí)----------------------------------
-=======
-  frontend-node-modules: # node_modules para el frontend (evita perder módulos al montar el código)
->>>>>>> origin/Modularizacion
