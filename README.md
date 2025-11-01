@@ -1,10 +1,10 @@
 # 🏛️ Sistema de Gestión de Causas Judiciales
 
-## 📋 Información del Proyecto
+## Información del Proyecto
 
 ### Licitación
 - **Código**: 1552-56-LE25
-- **Nombre**: Sistema Informático de Gestión de Causas Judiciales
+- **Nombre**: Sistema Informático de Gestión de Causas Judiciales para Servicio de salud de Atacama
 - **Link**: [Ver licitación en Mercado Público](http://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=tyy5Bzwfkbwk7fVwIC5aDA==)
 
 ### Integrantes del Equipo
@@ -14,53 +14,71 @@
 
 ### ¿Qué resuelve este sistema?
 El sistema moderniza y digitaliza la gestión integral de causas judiciales, proporcionando una plataforma web centralizada que permite:
-- ✅ Registro y seguimiento de procesos judiciales
-- ✅ Gestión documental completa
-- ✅ Notificaciones automáticas a las partes
-- ✅ Generación de reportes y estadísticas
-- ✅ Control de acceso según roles y permisos
-- ✅ Análisis de seguridad con IA
+- Registro y seguimiento de procesos judiciales
+- Gestión documental completa
+- Notificaciones automáticas a las partes
+- Generación de reportes y estadísticas
+- Control de acceso según roles y permisos
+- Análisis de seguridad con IA
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
 ### Diagrama de Arquitectura
 ```
-                    ┌─────────────────┐
-                    │   USUARIOS      │
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │   FRONTEND      │
-                    │ (React + Nginx) │
-                    │   2 Réplicas    │
-                    └────────┬────────┘
-                             │
-┌────────────────────────────▼─────────────────────────────┐
-│                     API GATEWAY (Traefik)                 │
-│                    Load Balancer + Routing                │
-└──┬────────┬────────┬────────┬────────┬────────┬─────────┘
-   │        │        │        │        │        │
-   ▼        ▼        ▼        ▼        ▼        ▼
-┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
-│ Auth │ │Casos │ │ Docs │ │Notif │ │  AI  │ │Report│
-│Service│ │Service│ │Service│ │Service│ │Service│ │Service│
-└───┬──┘ └───┬──┘ └───┬──┘ └───┬──┘ └──┬─┘ └───┬──┘
-    │        │        │        │       │       │
-    └────────┴────────┴────────┴───────┴───────┘
-                      │
-         ┌────────────┼────────────┐
-         │            │            │
-    ┌────▼────┐  ┌───▼────┐  ┌───▼────┐
-    │  MySQL  │  │ Redis  │  │ MinIO  │
-    │ Master  │  │ Master │  │(Docs)  │
-    └────┬────┘  └───┬────┘  └────────┘
-         │           │
-    ┌────▼────┐  ┌───▼────┐
-    │  MySQL  │  │ Redis  │
-    │ Replica │  │Replica │
-    └─────────┘  └────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                         USUARIOS FINALES                        │
+│              (Jueces, Abogados, Administrativos)                │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ HTTPS
+                           ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    FRONTEND (React + Nginx)                      │
+│                         2 Réplicas (HA)                          │
+│  frontend-1: :80  │  frontend-2: :80  │  Load Balanced           │
+└──────────────────────────┬───────────────────────────────────────┘
+                           │ frontend-network
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  API GATEWAY (Traefik v2.10)                    │
+│           - Load Balancing  - Service Discovery                 │
+│           - SSL Termination - Rate Limiting                     │
+│                    Dashboard: :8080                             │
+└─────┬────────┬────────┬────────┬────────┬────────┬──────────────┘
+      │        │        │        │        │        │ backend-network
+      ▼        ▼        ▼        ▼        ▼        ▼
+┌─────────┐ ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│  Auth   │ │  Casos  │ │Documentos│ │Notificac.│ │    AI    │
+│ Service │ │ Service │ │ Service  │ │ Service  │ │ Service  │
+│  :5001  │ │  :5002  │ │  :5003   │ │  :5004   │ │  :5005   │
+└────┬────┘ └────┬────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘
+     │           │           │            │            │
+     └───────────┴───────────┴────────────┴────────────┘
+                           │ database-network
+         ┌─────────────────┼─────────────────┐
+         │                 │                 │
+    ┌────▼─────┐     ┌─────▼─────┐    ┌────▼──────┐
+    │  MySQL   │     │   Redis   │    │  Storage  │
+    │  Master  │     │  Master   │    │  (Docs)   │
+    │  :3306   │     │   :6379   │    └───────────┘
+    └────┬─────┘     └─────┬─────┘
+         │                 │
+    ┌────▼─────┐     ┌─────▼─────┐
+    │  MySQL   │     │   Redis   │
+    │  Replica │     │  Replica  │
+    │  :3307   │     │   :6380   │
+    └──────────┘     └───────────┘
+
+┌──────────────────────────────────────────────────────────────────┐
+│                  MONITOREO & OBSERVABILIDAD                      │
+│  Prometheus (:9090)  │  Grafana (:3000)  │  Logs Centralizados   │
+└──────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────┐
+│                    BACKUP & RECUPERACIÓN                         │
+│         Backup Service - Respaldos automatizados diarios         │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Servicios Implementados (14 servicios totales)
@@ -112,7 +130,7 @@ El sistema moderniza y digitaliza la gestión integral de causas judiciales, pro
 
 ---
 
-## 🚀 Alta Disponibilidad (HA)
+## Alta Disponibilidad (HA)
 
 ### Estrategias Implementadas
 
@@ -138,7 +156,7 @@ El sistema moderniza y digitaliza la gestión integral de causas judiciales, pro
 - Dependencias configuradas con `condition: service_healthy`
 
 ### Demostración de HA
-Durante la presentación mostraremos:
+Durante la presentación se mostrará:
 1. Sistema funcionando con todas las réplicas activas
 2. Detener manualmente una réplica de MySQL
 3. Sistema continúa operando sin interrupciones
@@ -146,7 +164,7 @@ Durante la presentación mostraremos:
 
 ---
 
-## 🤖 Componente de Inteligencia Artificial
+## Componente de Inteligencia Artificial
 
 ### Funcionalidad: Agente IA para Detección de Brechas de Seguridad
 
@@ -190,7 +208,7 @@ Response:
 
 ---
 
-## 📦 Instalación y Uso
+## Instalación y Uso
 
 ### Requisitos Previos
 - **Docker Desktop**: Versión 20.10 o superior
@@ -209,7 +227,7 @@ cd sistema-causas-judiciales
 # Copiar el template
 cp .env.example .env
 
-# Editar el archivo .env con tus credenciales
+# Editar el archivo .env con credenciales
 # Puedes usar VS Code:
 code .env
 ```
@@ -239,7 +257,7 @@ docker-compose ps
 - **Grafana (Monitoreo)**: http://localhost:3000
 - **Prometheus (Métricas)**: http://localhost:9090
 
-#### Usuarios de Prueba
+#### Usuarios de Prueba (modificables)
 | Rol | Usuario | Contraseña |
 |-----|---------|-----------|
 | Administrador | admin@judicial.cl | Admin123! |
@@ -279,48 +297,8 @@ docker stats
 
 ---
 
-## 💾 Sistema de Respaldos
+## Sistema de Respaldos
 
-### Scripts de Backup
-
-#### Ejecución Manual
-```bash
-# Backup de base de datos
-docker exec backup-service /app/backup-db.sh
-
-# Backup de documentos
-docker exec backup-service /app/backup-files.sh
-```
-
-#### Automatización
-Los backups se ejecutan automáticamente:
-- **Frecuencia**: Diariamente a las 2:00 AM
-- **Retención**: Se mantienen los últimos 7 días
-- **Ubicación**: Volumen `backup-storage`
-
-#### Listar Backups Disponibles
-```bash
-docker exec backup-service ls -lh /backups
-```
-
-### Restauración de Datos
-
-#### Restaurar Base de Datos
-```bash
-# Listar backups disponibles
-docker exec backup-service ls /backups
-
-# Restaurar un backup específico
-docker exec backup-service /app/restore-db.sh causas_judiciales_2024-10-31.sql.gz
-```
-
-#### Restaurar Documentos
-```bash
-docker exec backup-service /app/restore-files.sh documentos_2024-10-31.tar.gz
-```
-
-### Documentación Completa
-Ver: [docs/backup-recovery.md](docs/backup-recovery.md)
 
 ---
 
@@ -348,7 +326,7 @@ Ver: [docs/backup-recovery.md](docs/backup-recovery.md)
 
 ---
 
-## 🧪 Testing y Validación
+## Testing y Validación
 
 ### Health Checks
 Todos los servicios tienen endpoints de salud:
@@ -377,114 +355,9 @@ curl http://localhost/api/casos
 # 4. Levantar nuevamente el Master
 docker-compose start mysql-master
 ```
-
 ---
 
-## 📁 Estructura del Proyecto
-
-```
-sistema-causas-judiciales/
-│
-├── docker-compose.yml           # Configuración principal de Docker
-├── .env.example                 # Template de variables
-├── .env                         # Variables reales (NO commitear)
-├── .gitignore                   # Archivos ignorados por Git
-├── README.md                    # Este archivo
-│
-├── docs/                        # Documentación técnica
-│   ├── arquitectura.md          # Detalles de arquitectura
-│   ├── backup-recovery.md       # Guía de respaldos
-│   ├── deployment.md            # Guía de despliegue
-│   └── diagramas/               # Diagramas visuales
-│       ├── arquitectura.png
-│       ├── redes-docker.png
-│       └── alta-disponibilidad.png
-│
-├── services/                    # Código de microservicios
-│   ├── frontend/                # React + Nginx
-│   │   ├── Dockerfile
-│   │   ├── nginx.conf
-│   │   └── src/
-│   │
-│   ├── auth-service/            # Autenticación
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   └── app/
-│   │
-│   ├── casos-service/           # Gestión de causas
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   └── app/
-│   │
-│   ├── documentos-service/      # Gestión de documentos
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   └── app/
-│   │
-│   ├── notificaciones-service/  # Notificaciones
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   └── app/
-│   │
-│   └── ai-service/              # Análisis con IA
-│       ├── Dockerfile
-│       ├── requirements.txt
-│       └── app/
-│
-├── infrastructure/              # Configuraciones de infraestructura
-│   ├── database/
-│   │   ├── mysql/
-│   │   │   ├── master/
-│   │   │   │   ├── init.sql
-│   │   │   │   └── my.cnf
-│   │   │   └── replica/
-│   │   │       └── my.cnf
-│   │   └── redis/
-│   │       └── redis.conf
-│   │
-│   └── monitoring/
-│       ├── prometheus/
-│       │   └── prometheus.yml
-│       └── grafana/
-│           └── provisioning/
-│
-└── scripts/                     # Scripts de utilidad
-    ├── backup/
-    │   ├── Dockerfile
-    │   ├── backup-db.sh
-    │   ├── backup-files.sh
-    │   ├── restore-db.sh
-    │   └── restore-files.sh
-    │
-    └── init/
-        └── setup-replication.sh
-```
-
----
-
-## 👥 Roles del Equipo
-
-### Camilo Fuentes - Infraestructura
-- Docker Compose
-- Redes y volúmenes
-- Alta disponibilidad
-- Sistema de respaldos
-
-### Demian Maturana - Backend
-- Microservicios
-- Bases de datos
-- Replicación de BD
-- APIs REST
-
-### Catalina Herrera - Frontend y AI
-- Interfaz React
-- Componente IA
-- Documentación
-- Testing
-
----
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Problema: Servicios no inician
 ```bash
@@ -538,7 +411,7 @@ Este proyecto fue desarrollado como parte del curso de Administración de Redes 
 
 ---
 
-## 📞 Contacto
+## Contacto
 
 Para preguntas sobre el proyecto:
 - Camilo Fuentes: [email]
