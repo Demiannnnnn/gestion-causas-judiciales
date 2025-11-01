@@ -43,16 +43,16 @@ services:
     
     environment:
       # variables de entorno
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      
-      # Nombre de la BD
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      
-      # Usuario(nO root)
-      MYSQL_USER: ${MYSQL_USER}
-      
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+
+      # Nombre de la BD (por defecto 'appdb')
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-appdb}
+
+      # Usuario (no root)
+      MYSQL_USER: ${MYSQL_USER:-appuser}
+
       # Contraseña del usuario
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
     
     volumes:
       #guarda los datos de MySQL en un volumen
@@ -61,7 +61,7 @@ services:
       # Scripts SQL que se ejecutan al crear la BD
       - ./db/mysql/init:/docker-entrypoint-initdb.d
     ports:
-      - "3306:3306"
+      - "3307:3306"
     
     networks:
       - app-network
@@ -163,7 +163,7 @@ services:
       - "traefik.http.routers.casos.rule=PathPrefix(`/api/casos`)"
       - "traefik.http.middlewares.casos-strip.stripprefix.prefixes=/api/casos"
       - "traefik.http.routers.casos.middlewares=casos-strip"
-      - "traefik.http.services.casos.loadbalancer.server.port=8001"
+      - "traefik.http.services.casos.loadbalancer.server.port=5001"
     networks:
       - app-network
     restart: unless-stopped
@@ -235,7 +235,18 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`localhost`)"
       # Regla: CUALQUIER petición a localhost va al frontend
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+    volumes:
+      - ./frontend:/app
+      # usar un volumen nombrado para node_modules para no sobrescribir
+      # los módulos instalados en la imagen cuando montamos ./frontend
+      - frontend-node-modules:/app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      # Forzar que react-scripts escuche en todas las interfaces
+      - HOST=0.0.0.0
+    stdin_open: true
+    tty: true
       # Nginx sirve los archivos estáticos en puerto 80
     networks:
       - app-network
@@ -245,10 +256,10 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      # Archivo de configuración de Prometheus
+      # Montar un archivo de configuración concreto (evita problemas si hay directorios con el mismo nombre)
+      - ./monitoring/prometheus/prometheus_main.yml:/etc/prometheus/prometheus.yml
+      # Datos de configuración y métricas
       - prometheus-data:/prometheus
-      # Datos de métricas
     ports:
       - "9090:9090"
     command:
@@ -289,5 +300,9 @@ volumes:
   documentos-uploads:   # PDFs y archivos subidos
   prometheus-data:      # Métricas de Prometheus
   grafana-data:         # Dashboards de Grafana
+<<<<<<< HEAD
 
   #------------------- SERVICIO IA (falta aquí)----------------------------------
+=======
+  frontend-node-modules: # node_modules para el frontend (evita perder módulos al montar el código)
+>>>>>>> origin/Modularizacion
