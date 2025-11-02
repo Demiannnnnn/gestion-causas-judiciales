@@ -1,90 +1,101 @@
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from database import db_manager
+from models import Causa
 
 app = Flask(__name__)
 CORS(app)  # Habilitar CORS para todas las rutas
 
-# Datos de ejemplo en memoria
-casos = [
-    {
-        "id": 1,
-        "rit": "C-1234-2023",
-        "tribunal": "1er Juzgado de Letras de Santiago",
-        "partes": "Demandante A vs. Demandado B",
-        "fecha_inicio": "2023-01-15",
-        "estado": "Activo"
-    },
-    {
-        "id": 2,
-        "rit": "O-5678-2022",
-        "tribunal": "Juzgado de Familia de Puente Alto",
-        "partes": "Solicitante X vs. Solicitado Y",
-        "fecha_inicio": "2022-11-20",
-        "estado": "Archivado"
-    }
-]
-next_id = 3
 
-# Endpoint para obtener todos los casos (con búsqueda)
-@app.route('/casos', methods=['GET'])
+# Endpoint para obtener todos los casos
+@app.route("/", methods=["GET"])
 def get_casos():
-    query = request.args.get('query', '').lower()
-    if query:
-        resultados = [caso for caso in casos if query in caso['rit'].lower() or query in caso['tribunal'].lower()]
-        return jsonify(resultados)
-    return jsonify(casos)
+    with db_manager.get_session() as session:
+        casos = session.query(Causa).all()
+        return jsonify(
+            [
+                {
+                    "id_causa": c.id_causa,
+                    "rit": c.rit,
+                    "tribunal_id": c.tribunal_id,
+                    "fecha_inicio": c.fecha_inicio.isoformat()
+                    if c.fecha_inicio
+                    else None,
+                    "estado": c.estado,
+                    "descripcion": c.descripcion,
+                }
+                for c in casos
+            ]
+        )
+
 
 # Endpoint para obtener un caso por ID
-@app.route('/casos/<int:id>', methods=['GET'])
+@app.route("/<int:id>", methods=["GET"])
 def get_caso(id):
-    caso = next((c for c in casos if c['id'] == id), None)
-    if caso:
-        return jsonify(caso)
-    return jsonify({'error': 'Caso no encontrado'}), 404
+    with db_manager.get_session() as session:
+        caso = session.query(Causa).filter(Causa.id_causa == id).first()
+        if caso:
+            return jsonify(
+                {
+                    "id_causa": caso.id_causa,
+                    "rit": caso.rit,
+                    "tribunal_id": caso.tribunal_id,
+                    "fecha_inicio": caso.fecha_inicio.isoformat()
+                    if caso.fecha_inicio
+                    else None,
+                    "estado": caso.estado,
+                    "descripcion": caso.descripcion,
+                }
+            )
+        return jsonify({"error": "Caso no encontrado"}), 404
+
 
 # Endpoint para crear un nuevo caso
-@app.route('/casos', methods=['POST'])
+@app.route("/", methods=["POST"])
 def create_caso():
-    global next_id
     data = request.json
-    nuevo_caso = {
-        "id": next_id,
-        "rit": data['rit'],
-        "tribunal": data['tribunal'],
-        "partes": data['partes'],
-        "fecha_inicio": data['fecha_inicio'],
-        "estado": data['estado']
-    }
-    casos.append(nuevo_caso)
-    next_id += 1
-    return jsonify(nuevo_caso), 201
+    nuevo_caso = Causa(
+        rit=data["rit"],
+        tribunal_id=data["tribunal_id"],
+        fecha_inicio=data.get("fecha_inicio"),
+        estado=data.get("estado", "ACTIVA"),
+        descripcion=data.get("descripcion"),
+    )
+    with db_manager.get_session() as session:
+        session.add(nuevo_caso)
+        session.flush()  # Para obtener el ID antes del commit
+        return jsonify({"id_causa": nuevo_caso.id_causa}), 201
+
 
 # Endpoint para actualizar un caso
-@app.route('/casos/<int:id>', methods=['PUT'])
+@app.route("/<int:id>", methods=["PUT"])
 def update_caso(id):
-    caso = next((c for c in casos if c['id'] == id), None)
-    if not caso:
-        return jsonify({'error': 'Caso no encontrado'}), 404
-    data = request.json
-    caso.update({
-        "rit": data.get('rit', caso['rit']),
-        "tribunal": data.get('tribunal', caso['tribunal']),
-        "partes": data.get('partes', caso['partes']),
-        "fecha_inicio": data.get('fecha_inicio', caso['fecha_inicio']),
-        "estado": data.get('estado', caso['estado'])
-    })
-    return jsonify(caso)
+    with db_manager.get_session() as session:
+        caso = session.query(Causa).filter(Causa.id_causa == id).first()
+        if not caso:
+            return jsonify({"error": "Caso no encontrado"}), 404
+
+        data = request.json
+        caso.rit = data.get("rit", caso.rit)
+        caso.tribunal_id = data.get("tribunal_id", caso.tribunal_id)
+        caso.fecha_inicio = data.get("fecha_inicio", caso.fecha_inicio)
+        caso.estado = data.get("estado", caso.estado)
+        caso.descripcion = data.get("descripcion", caso.descripcion)
+
+        return jsonify({"mensaje": "Caso actualizado"})
+
 
 # Endpoint para eliminar un caso
-@app.route('/casos/<int:id>', methods=['DELETE'])
+@app.route("/<int:id>", methods=["DELETE"])
 def delete_caso(id):
-    global casos
-    caso = next((c for c in casos if c['id'] == id), None)
-    if not caso:
-        return jsonify({'error': 'Caso no encontrado'}), 404
-    casos = [c for c in casos if c['id'] != id]
-    return jsonify({'mensaje': 'Caso eliminado'})
+    with db_manager.get_session() as session:
+        caso = session.query(Causa).filter(Causa.id_causa == id).first()
+        if not caso:
+            return jsonify({"error": "Caso no encontrado"}), 404
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+        session.delete(caso)
+        return jsonify({"mensaje": "Caso eliminado"})
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5001, debug=True)

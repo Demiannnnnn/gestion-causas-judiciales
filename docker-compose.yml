@@ -38,7 +38,8 @@ services:
     restart: unless-stopped
 
   mysql:
-    image: mysql:8.0
+    build:
+      context: ./db
     container_name: mysql
     
     environment:
@@ -59,7 +60,7 @@ services:
       - mysql-data:/var/lib/mysql
 
       # Scripts SQL que se ejecutan al crear la BD
-      - ./db/mysql/init:/docker-entrypoint-initdb.d
+      - ./db/mysql:/docker-entrypoint-initdb.d
     ports:
       - "3307:3306"
     
@@ -151,13 +152,13 @@ services:
       context: ./backend/casos
     container_name: casos
     environment:
-      - FLASK_APP=app/app.py
+      - FLASK_APP=app.py
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       #  Base de datos 1 de Redis 
       - REDIS_URL=redis://redis:6379/1
     volumes:
-      - ./backend/casos:/app
+      - ./backend/casos/app:/app
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.casos.rule=PathPrefix(`/api/casos`)"
