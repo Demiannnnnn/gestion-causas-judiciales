@@ -23,6 +23,12 @@ CREATE TABLE Tribunal (
     UNIQUE KEY (nombre)
 ) ENGINE=InnoDB;
 
+-- Insertar tribunales de ejemplo
+INSERT INTO `Tribunal` (`nombre`, `region`, `direccion`) VALUES
+('1er Juzgado de Letras de Santiago', 'Metropolitana', 'Dirección Ficticia 123'),
+('Juzgado de Familia de Puente Alto', 'Metropolitana', 'Dirección Ficticia 456'),
+('Corte de Apelaciones de Valparaíso', 'Valparaíso', 'Dirección Ficticia 789');
+
 -- ============================================================
 --  TABLA: USUARIO
 -- ============================================================
@@ -248,3 +254,11 @@ GRANT SELECT ON gestion_causas.* TO 'readonly_app'@'%';
 -- ============================================================
 
 FLUSH PRIVILEGES;
+
+-- ============================================================
+--  USUARIO DE PRUEBA INICIAL
+-- Contraseña: Admin123!
+-- ============================================================
+INSERT INTO `Usuario` (`nombre`, `correo`, `password_hash`, `rol`, `activo`) VALUES
+('Admin Principal', 'admin@judicial.cl', '$2b$12$PEm.9URVdnDqQELR7Zh0x.kH.vaK96CSW6KvfddCE3pNQYcIJasHW', 'ADMINISTRADOR', 1);
+

@@ -109,7 +109,7 @@ services:
     container_name: autenticacion
     
     environment:
-      - FLASK_APP=app/app.py
+      - FLASK_APP=app.py
       - FLASK_ENV=development 
 
       # URL de conexión a MySQL     
@@ -123,7 +123,7 @@ services:
       
     
     volumes:
-      - ./backend/autenticacion:/app
+      - ./backend/autenticacion/app:/app
     
     labels:
       #codigo para la conexion con traefic (gateway)

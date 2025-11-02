@@ -1,31 +1,31 @@
 import React, { useState, useEffect } from 'react';
-
-const API_URL = '/api'; // URL base del gateway Traefik
+import apiFetch from '../utils/api';
 
 function Casos() {
   const [casos, setCasos] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [tribunales, setTribunales] = useState([]);
   const [newCaso, setNewCaso] = useState({
     rit: '',
-    tribunal_id: ''
+    tribunal_id: '',
+    descripcion: ''
   });
 
-  // Cargar casos al montar el componente
+  // Cargar casos y tribunales al montar el componente
   useEffect(() => {
     fetchCasos();
+    fetchTribunales();
   }, []);
 
   const fetchCasos = () => {
-    fetch(`/api/casos`)
-      .then(response => response.json())
+    apiFetch('/api/casos')
       .then(data => setCasos(data))
       .catch(error => console.error('Error al obtener casos:', error));
   };
 
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-    // La búsqueda en el backend no está implementada aún con la nueva API
-    // fetchCasos(e.target.value);
+  const fetchTribunales = () => {
+    apiFetch('/api/casos/tribunales')
+      .then(data => setTribunales(data))
+      .catch(error => console.error('Error al obtener tribunales:', error));
   };
 
   const handleInputChange = (e) => {
@@ -36,27 +36,24 @@ function Casos() {
   const handleCreateCaso = (e) => {
     e.preventDefault();
     const payload = {
-        ...newCaso,
-        tribunal_id: parseInt(newCaso.tribunal_id, 10) // Asegurarse que es un número
+        rit: newCaso.rit,
+        tribunal_id: parseInt(newCaso.tribunal_id, 10),
+        descripcion: newCaso.descripcion
     };
 
-    fetch(`/api/casos` , {
+    apiFetch('/api/casos', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(payload),
     })
-      .then(response => response.json())
-      .then(data => {
-        fetchCasos(); // Recargar todos los casos para ver el nuevo
-        setNewCaso({ rit: '', tribunal_id: '' }); // Limpiar formulario
+      .then(() => {
+        fetchCasos(); // Recargar la lista de casos
+        setNewCaso({ rit: '', tribunal_id: '', descripcion: '' }); // Limpiar formulario
       })
       .catch(error => console.error('Error al crear caso:', error));
   };
 
   const handleDeleteCaso = (id) => {
-    fetch(`/api/casos/${id}`, {
+    apiFetch(`/api/casos/${id}`, {
       method: 'DELETE',
     })
       .then(() => {
@@ -75,12 +72,23 @@ function Casos() {
         <div className="card-body">
           <form onSubmit={handleCreateCaso}>
             <div className="row mb-3">
-              <div className="col">
-                <input type="text" className="form-control" name="rit" placeholder="RIT" value={newCaso.rit} onChange={handleInputChange} required />
+              <div className="col-md-6">
+                <label htmlFor="rit" className="form-label">RIT</label>
+                <input type="text" className="form-control" id="rit" name="rit" placeholder="Ej: C-123-2024" value={newCaso.rit} onChange={handleInputChange} required />
               </div>
-              <div className="col">
-                <input type="number" className="form-control" name="tribunal_id" placeholder="ID del Tribunal" value={newCaso.tribunal_id} onChange={handleInputChange} required />
+              <div className="col-md-6">
+                <label htmlFor="tribunal_id" className="form-label">Tribunal</label>
+                <select className="form-select" id="tribunal_id" name="tribunal_id" value={newCaso.tribunal_id} onChange={handleInputChange} required>
+                  <option value="" disabled>Seleccione un tribunal...</option>
+                  {tribunales.map(t => (
+                    <option key={t.id_tribunal} value={t.id_tribunal}>{t.nombre}</option>
+                  ))}
+                </select>
               </div>
+            </div>
+            <div className="mb-3">
+                <label htmlFor="descripcion" className="form-label">Descripción</label>
+                <textarea className="form-control" id="descripcion" name="descripcion" rows="3" value={newCaso.descripcion} onChange={handleInputChange}></textarea>
             </div>
             <button type="submit" className="btn btn-primary">Crear Caso</button>
           </form>
@@ -91,11 +99,6 @@ function Casos() {
       <div className="card">
         <div className="card-header">Listado de Casos</div>
         <div className="card-body">
-            <div class="input-group mb-3">
-                <span class="input-group-text" id="basic-addon1">Buscar</span>
-                <input type="text" className="form-control" placeholder="Buscar por RIT o tribunal..." value={searchTerm} onChange={handleSearchChange} />
-            </div>
-          
           <table className="table">
             <thead>
               <tr>
