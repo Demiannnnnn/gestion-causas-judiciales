@@ -60,7 +60,7 @@ services:
       - mysql-data:/var/lib/mysql
 
       # Scripts SQL que se ejecutan al crear la BD
-      - ./db/
+      - ./db/mysql:/docker-entrypoint-initdb.d
     ports:
       - "3307:3306"
     
