@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom'; // Importar Link
 import apiFetch from '../utils/api';
 
 function Casos() {
@@ -117,6 +118,7 @@ function Casos() {
                   <td><span className={`badge bg-${caso.estado === 'ACTIVA' ? 'success' : 'secondary'}`}>{caso.estado}</span></td>
                   <td>{caso.descripcion}</td>
                   <td>
+                    <Link to={`/casos/${caso.id_causa}`} className="btn btn-info btn-sm me-2">Detalles</Link>
                     <button className="btn btn-danger btn-sm" onClick={() => handleDeleteCaso(caso.id_causa)}>Eliminar</button>
                   </td>
                 </tr>
