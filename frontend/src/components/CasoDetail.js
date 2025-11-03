@@ -75,7 +75,7 @@ function CasoDetail() {
             <p className="card-text"><strong>ID Causa:</strong> {caso.id_causa}</p>
             <p className="card-text"><strong>Descripción:</strong> {caso.descripcion}</p>
             <p className="card-text"><strong>Estado:</strong> <span className={`badge bg-${caso.estado === 'ACTIVA' ? 'success' : 'secondary'}`}>{caso.estado}</span></p>
-            <p className="card-text"><strong>Fecha de Creación:</strong> {new Date(caso.fecha_creacion).toLocaleString()}</p>
+            <p className="card-text"><strong>Fecha de Inicio:</strong> {new Date(caso.fecha_inicio).toLocaleString()}</p>
             <button className="btn btn-primary" onClick={() => navigate('/casos')}>Volver</button>
           </div>
         )}
