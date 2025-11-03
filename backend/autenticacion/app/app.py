@@ -1,8 +1,8 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from database import db_manager
-from models import Usuario
+from common.database import db_manager
+from common.models import Usuario
 from auth import verify_password, create_access_token
 
 app = Flask(__name__)
