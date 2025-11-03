@@ -2,8 +2,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import datetime
 
-from database import db_manager
-from models import Causa, Tribunal
+from common.database import db_manager
+from common.models import Causa, Tribunal
 
 app = Flask(__name__)
 CORS(app)  # Habilitar CORS para todas las rutas
