@@ -15,16 +15,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuración de email desde variables de entorno
-SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
-SMTP_USER = os.getenv('SMTP_USER', '')
-SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
-MAIL_FROM = os.getenv('MAIL_FROM', SMTP_USER)
+SMTP_HOST = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("MAIL_PORT", 587))
+SMTP_USER = os.getenv("MAIL_USERNAME", "")
+SMTP_PASSWORD = os.getenv("MAIL_PASSWORD", "")
+MAIL_FROM = os.getenv("MAIL_FROM", SMTP_USER)
 
 # Base de datos simulada de notificaciones
 notificaciones_db = [
-
-    #CASOS PRUEBAS, NO SON CASOS CARGADOS, SIRVEN POR EL MOMENTO PARA VER EL FRONTEND
+    # CASOS PRUEBAS, NO SON CASOS CARGADOS, SIRVEN POR EL MOMENTO PARA VER EL FRONTEND
     {
         "id": 1,
         "tipo": "vencimiento",
@@ -34,7 +33,7 @@ notificaciones_db = [
         "mensaje": "El plazo para presentar alegatos vence en 3 días",
         "fecha_envio": (datetime.now() - timedelta(days=1)).isoformat(),
         "estado": "enviado",
-        "leido": False
+        "leido": False,
     },
     {
         "id": 2,
@@ -45,36 +44,40 @@ notificaciones_db = [
         "mensaje": "Se ha registrado un nuevo movimiento en el caso",
         "fecha_envio": (datetime.now() - timedelta(hours=5)).isoformat(),
         "estado": "enviado",
-        "leido": True
-    }
+        "leido": True,
+    },
 ]
 next_id = 3
 
 
 # ==================== ENDPOINTS DE SALUD ====================
 
-@app.route('/health', methods=['GET'])
+
+@app.route("/health", methods=["GET"])
 def health_check():
     """Health check para Docker"""
-    return jsonify({
-        "status": "healthy",
-        "service": "notificaciones",
-        "smtp_configured": bool(SMTP_USER and SMTP_PASSWORD)
-    }), 200
+    return jsonify(
+        {
+            "status": "healthy",
+            "service": "notificaciones",
+            "smtp_configured": bool(SMTP_USER and SMTP_PASSWORD),
+        }
+    ), 200
 
 
 # ==================== ENVÍO DE NOTIFICACIONES ====================
 
+
 def enviar_email(destinatario, asunto, mensaje, html=False):
     """
     Función auxiliar para enviar emails
-    
+
     Args:
         destinatario (str): Email del destinatario
         asunto (str): Asunto del email
         mensaje (str): Cuerpo del mensaje
         html (bool): Si el mensaje es HTML
-    
+
     Returns:
         bool: True si se envió correctamente, False en caso contrario
     """
@@ -83,38 +86,38 @@ def enviar_email(destinatario, asunto, mensaje, html=False):
         if not SMTP_USER or not SMTP_PASSWORD:
             logger.warning("SMTP no configurado. Email no enviado (modo demo).")
             return True  # En modo demo, retornar True para no bloquear el sistema
-        
+
         # Crear mensaje
-        msg = MIMEMultipart('alternative')
-        msg['From'] = MAIL_FROM
-        msg['To'] = destinatario
-        msg['Subject'] = asunto
-        
+        msg = MIMEMultipart("alternative")
+        msg["From"] = MAIL_FROM
+        msg["To"] = destinatario
+        msg["Subject"] = asunto
+
         # Adjuntar cuerpo
         if html:
-            msg.attach(MIMEText(mensaje, 'html'))
+            msg.attach(MIMEText(mensaje, "html"))
         else:
-            msg.attach(MIMEText(mensaje, 'plain'))
-        
+            msg.attach(MIMEText(mensaje, "plain"))
+
         # Conectar y enviar
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
-        
+
         logger.info(f"Email enviado a {destinatario}: {asunto}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error al enviar email: {str(e)}")
         return False
 
 
-@app.route('/notificaciones/send', methods=['POST'])
+@app.route("/send", methods=["POST"])
 def send_notification():
     """
     Envía una notificación por email
-    
+
     Body JSON:
     {
         "tipo": "vencimiento|movimiento|alerta",
@@ -126,41 +129,38 @@ def send_notification():
     """
     try:
         data = request.get_json()
-        
+
         # Validar campos requeridos
-        required_fields = ['tipo', 'destinatario', 'asunto', 'mensaje']
+        required_fields = ["tipo", "destinatario", "asunto", "mensaje"]
         for field in required_fields:
             if field not in data:
                 return jsonify({"error": f"Campo requerido: {field}"}), 400
-        
+
         # Enviar email
         success = enviar_email(
-            destinatario=data['destinatario'],
-            asunto=data['asunto'],
-            mensaje=data['mensaje']
+            destinatario=data["destinatario"],
+            asunto=data["asunto"],
+            mensaje=data["mensaje"],
         )
-        
+
         # Guardar en base de datos
         global next_id
         nueva_notificacion = {
             "id": next_id,
-            "tipo": data['tipo'],
-            "caso_rit": data.get('caso_rit', 'N/A'),
-            "destinatario": data['destinatario'],
-            "asunto": data['asunto'],
-            "mensaje": data['mensaje'],
+            "tipo": data["tipo"],
+            "caso_rit": data.get("caso_rit", "N/A"),
+            "destinatario": data["destinatario"],
+            "asunto": data["asunto"],
+            "mensaje": data["mensaje"],
             "fecha_envio": datetime.now().isoformat(),
             "estado": "enviado" if success else "error",
-            "leido": False
+            "leido": False,
         }
         notificaciones_db.append(nueva_notificacion)
         next_id += 1
-        
-        return jsonify({
-            "success": success,
-            "notificacion": nueva_notificacion
-        }), 201
-        
+
+        return jsonify({"success": success, "notificacion": nueva_notificacion}), 201
+
     except Exception as e:
         logger.error(f"Error al enviar notificación: {str(e)}")
         return jsonify({"error": "Error interno del servidor"}), 500
@@ -168,11 +168,12 @@ def send_notification():
 
 # ==================== NOTIFICACIONES AUTOMÁTICAS ====================
 
-@app.route('/notificaciones/alerta-vencimiento', methods=['POST'])
+
+@app.route("/alerta-vencimiento", methods=["POST"])
 def alerta_vencimiento():
     """
     Envía alerta de vencimiento de plazo para un caso
-    
+
     Body JSON:
     {
         "caso_rit": "C-1234-2023",
@@ -183,28 +184,28 @@ def alerta_vencimiento():
     """
     try:
         data = request.get_json()
-        
-        caso_rit = data.get('caso_rit')
-        destinatario = data.get('destinatario')
-        dias = data.get('dias_restantes', 0)
-        descripcion = data.get('descripcion', 'plazo')
-        
+
+        caso_rit = data.get("caso_rit")
+        destinatario = data.get("destinatario")
+        dias = data.get("dias_restantes", 0)
+        descripcion = data.get("descripcion", "plazo")
+
         asunto = f"⚠️ Vencimiento de Plazo - Caso {caso_rit}"
         mensaje = f"""
         Estimado/a,
         
         Le recordamos que el plazo para "{descripcion}" del caso {caso_rit} vence en {dias} día(s).
         
-        Fecha límite: {(datetime.now() + timedelta(days=dias)).strftime('%d/%m/%Y')}
+        Fecha límite: {(datetime.now() + timedelta(days=dias)).strftime("%d/%m/%Y")}
         
         Por favor, tome las acciones necesarias antes del vencimiento.
         
         Saludos cordiales,
         Sistema de Gestión Judicial
         """
-        
+
         success = enviar_email(destinatario, asunto, mensaje)
-        
+
         # Guardar notificación
         global next_id
         notificacion = {
@@ -216,26 +217,23 @@ def alerta_vencimiento():
             "mensaje": mensaje,
             "fecha_envio": datetime.now().isoformat(),
             "estado": "enviado" if success else "error",
-            "leido": False
+            "leido": False,
         }
         notificaciones_db.append(notificacion)
         next_id += 1
-        
-        return jsonify({
-            "success": success,
-            "notificacion": notificacion
-        }), 201
-        
+
+        return jsonify({"success": success, "notificacion": notificacion}), 201
+
     except Exception as e:
         logger.error(f"Error al enviar alerta de vencimiento: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/notificaciones/alerta-movimiento', methods=['POST'])
+@app.route("/alerta-movimiento", methods=["POST"])
 def alerta_movimiento():
     """
     Envía alerta de nuevo movimiento en un caso
-    
+
     Body JSON:
     {
         "caso_rit": "C-1234-2023",
@@ -245,14 +243,14 @@ def alerta_movimiento():
     """
     try:
         data = request.get_json()
-        
-        caso_rit = data.get('caso_rit')
-        destinatarios = data.get('destinatarios', [])
-        movimiento = data.get('movimiento', 'Nuevo movimiento')
-        
+
+        caso_rit = data.get("caso_rit")
+        destinatarios = data.get("destinatarios", [])
+        movimiento = data.get("movimiento", "Nuevo movimiento")
+
         if not destinatarios:
             return jsonify({"error": "No se especificaron destinatarios"}), 400
-        
+
         asunto = f"📋 Nuevo Movimiento - Caso {caso_rit}"
         mensaje = f"""
         Estimado/a,
@@ -261,18 +259,18 @@ def alerta_movimiento():
         
         "{movimiento}"
         
-        Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Fecha: {datetime.now().strftime("%d/%m/%Y %H:%M")}
         
         Puede revisar los detalles en el sistema.
         
         Saludos cordiales,
         Sistema de Gestión Judicial
         """
-        
+
         resultados = []
         for destinatario in destinatarios:
             success = enviar_email(destinatario, asunto, mensaje)
-            
+
             global next_id
             notificacion = {
                 "id": next_id,
@@ -283,21 +281,15 @@ def alerta_movimiento():
                 "mensaje": mensaje,
                 "fecha_envio": datetime.now().isoformat(),
                 "estado": "enviado" if success else "error",
-                "leido": False
+                "leido": False,
             }
             notificaciones_db.append(notificacion)
             next_id += 1
-            
-            resultados.append({
-                "destinatario": destinatario,
-                "success": success
-            })
-        
-        return jsonify({
-            "caso_rit": caso_rit,
-            "resultados": resultados
-        }), 201
-        
+
+            resultados.append({"destinatario": destinatario, "success": success})
+
+        return jsonify({"caso_rit": caso_rit, "resultados": resultados}), 201
+
     except Exception as e:
         logger.error(f"Error al enviar alerta de movimiento: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -305,11 +297,12 @@ def alerta_movimiento():
 
 # ==================== CONSOLIDADO DIARIO ====================
 
-@app.route('/notificaciones/consolidado-diario', methods=['POST'])
+
+@app.route("/consolidado-diario", methods=["POST"])
 def consolidado_diario():
     """
     Envía consolidado diario de casos a un usuario
-    
+
     Body JSON:
     {
         "destinatario": "email@example.com",
@@ -325,27 +318,27 @@ def consolidado_diario():
     """
     try:
         data = request.get_json()
-        
-        destinatario = data.get('destinatario')
-        casos = data.get('casos', [])
-        
+
+        destinatario = data.get("destinatario")
+        casos = data.get("casos", [])
+
         if not destinatario:
             return jsonify({"error": "Destinatario requerido"}), 400
-        
+
         # Construir mensaje HTML
         asunto = f"📊 Consolidado Diario - {datetime.now().strftime('%d/%m/%Y')}"
-        
+
         casos_html = ""
         for caso in casos:
             casos_html += f"""
             <tr>
-                <td style="padding: 10px; border: 1px solid #ddd;">{caso.get('rit', 'N/A')}</td>
-                <td style="padding: 10px; border: 1px solid #ddd;">{caso.get('estado', 'N/A')}</td>
-                <td style="padding: 10px; border: 1px solid #ddd;">{caso.get('proxima_accion', 'N/A')}</td>
-                <td style="padding: 10px; border: 1px solid #ddd;">{caso.get('fecha_limite', 'N/A')}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{caso.get("rit", "N/A")}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{caso.get("estado", "N/A")}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{caso.get("proxima_accion", "N/A")}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{caso.get("fecha_limite", "N/A")}</td>
             </tr>
             """
-        
+
         mensaje_html = f"""
         <html>
         <head>
@@ -358,7 +351,7 @@ def consolidado_diario():
         </head>
         <body>
             <h2>Consolidado Diario de Casos</h2>
-            <p>Fecha: {datetime.now().strftime('%d/%m/%Y')}</p>
+            <p>Fecha: {datetime.now().strftime("%d/%m/%Y")}</p>
             <p>Estimado/a,</p>
             <p>A continuación se presenta el resumen de sus casos activos:</p>
             
@@ -385,9 +378,9 @@ def consolidado_diario():
         </body>
         </html>
         """
-        
+
         success = enviar_email(destinatario, asunto, mensaje_html, html=True)
-        
+
         # Guardar notificación
         global next_id
         notificacion = {
@@ -399,17 +392,19 @@ def consolidado_diario():
             "mensaje": f"Consolidado diario con {len(casos)} casos",
             "fecha_envio": datetime.now().isoformat(),
             "estado": "enviado" if success else "error",
-            "leido": False
+            "leido": False,
         }
         notificaciones_db.append(notificacion)
         next_id += 1
-        
-        return jsonify({
-            "success": success,
-            "casos_enviados": len(casos),
-            "notificacion": notificacion
-        }), 201
-        
+
+        return jsonify(
+            {
+                "success": success,
+                "casos_enviados": len(casos),
+                "notificacion": notificacion,
+            }
+        ), 201
+
     except Exception as e:
         logger.error(f"Error al enviar consolidado diario: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -417,93 +412,94 @@ def consolidado_diario():
 
 # ==================== GESTIÓN DE NOTIFICACIONES ====================
 
-@app.route('/', methods=['GET'])
+
+@app.route("/", methods=["GET"])
 def get_notificaciones():
     """
     Obtiene todas las notificaciones (con filtros opcionales)
-    
+
     Query params:
     - destinatario: filtrar por email
     - tipo: filtrar por tipo (vencimiento, movimiento, alerta, consolidado)
     - leido: filtrar por estado de lectura (true/false)
     """
     try:
-        destinatario = request.args.get('destinatario')
-        tipo = request.args.get('tipo')
-        leido = request.args.get('leido')
-        
+        destinatario = request.args.get("destinatario")
+        tipo = request.args.get("tipo")
+        leido = request.args.get("leido")
+
         resultado = notificaciones_db.copy()
-        
+
         # Aplicar filtros
         if destinatario:
-            resultado = [n for n in resultado if n['destinatario'] == destinatario]
-        
+            resultado = [n for n in resultado if n["destinatario"] == destinatario]
+
         if tipo:
-            resultado = [n for n in resultado if n['tipo'] == tipo]
-        
+            resultado = [n for n in resultado if n["tipo"] == tipo]
+
         if leido is not None:
-            leido_bool = leido.lower() == 'true'
-            resultado = [n for n in resultado if n['leido'] == leido_bool]
-        
+            leido_bool = leido.lower() == "true"
+            resultado = [n for n in resultado if n["leido"] == leido_bool]
+
         # Ordenar por fecha (más recientes primero)
-        resultado.sort(key=lambda x: x['fecha_envio'], reverse=True)
-        
+        resultado.sort(key=lambda x: x["fecha_envio"], reverse=True)
+
         return jsonify(resultado), 200
-        
+
     except Exception as e:
         logger.error(f"Error al obtener notificaciones: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/notificaciones/<int:notif_id>', methods=['GET'])
+@app.route("/<int:notif_id>", methods=["GET"])
 def get_notificacion(notif_id):
     """Obtiene una notificación por ID"""
     try:
-        notificacion = next((n for n in notificaciones_db if n['id'] == notif_id), None)
-        
+        notificacion = next((n for n in notificaciones_db if n["id"] == notif_id), None)
+
         if not notificacion:
             return jsonify({"error": "Notificación no encontrada"}), 404
-        
+
         return jsonify(notificacion), 200
-        
+
     except Exception as e:
         logger.error(f"Error al obtener notificación: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/notificaciones/<int:notif_id>/marcar-leido', methods=['PUT'])
+@app.route("/<int:notif_id>/marcar-leido", methods=["PUT"])
 def marcar_leido(notif_id):
     """Marca una notificación como leída"""
     try:
-        notificacion = next((n for n in notificaciones_db if n['id'] == notif_id), None)
-        
+        notificacion = next((n for n in notificaciones_db if n["id"] == notif_id), None)
+
         if not notificacion:
             return jsonify({"error": "Notificación no encontrada"}), 404
-        
-        notificacion['leido'] = True
-        
+
+        notificacion["leido"] = True
+
         return jsonify(notificacion), 200
-        
+
     except Exception as e:
         logger.error(f"Error al marcar notificación como leída: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/notificaciones/<int:notif_id>', methods=['DELETE'])
+@app.route("/<int:notif_id>", methods=["DELETE"])
 def delete_notificacion(notif_id):
     """Elimina una notificación"""
     try:
         global notificaciones_db
-        
-        notificacion = next((n for n in notificaciones_db if n['id'] == notif_id), None)
-        
+
+        notificacion = next((n for n in notificaciones_db if n["id"] == notif_id), None)
+
         if not notificacion:
             return jsonify({"error": "Notificación no encontrada"}), 404
-        
-        notificaciones_db = [n for n in notificaciones_db if n['id'] != notif_id]
-        
+
+        notificaciones_db = [n for n in notificaciones_db if n["id"] != notif_id]
+
         return jsonify({"mensaje": "Notificación eliminada", "id": notif_id}), 200
-        
+
     except Exception as e:
         logger.error(f"Error al eliminar notificación: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -511,35 +507,39 @@ def delete_notificacion(notif_id):
 
 # ==================== ESTADÍSTICAS ====================
 
-@app.route('/notificaciones/stats', methods=['GET'])
+
+@app.route("/stats", methods=["GET"])
 def get_stats():
     """Obtiene estadísticas de notificaciones"""
     try:
         total = len(notificaciones_db)
-        enviadas = len([n for n in notificaciones_db if n['estado'] == 'enviado'])
-        errores = len([n for n in notificaciones_db if n['estado'] == 'error'])
-        leidas = len([n for n in notificaciones_db if n['leido']])
+        enviadas = len([n for n in notificaciones_db if n["estado"] == "enviado"])
+        errores = len([n for n in notificaciones_db if n["estado"] == "error"])
+        leidas = len([n for n in notificaciones_db if n["leido"]])
         no_leidas = total - leidas
-        
+
         # Notificaciones por tipo
         por_tipo = {}
         for notif in notificaciones_db:
-            tipo = notif['tipo']
+            tipo = notif["tipo"]
             por_tipo[tipo] = por_tipo.get(tipo, 0) + 1
-        
-        return jsonify({
-            "total": total,
-            "enviadas": enviadas,
-            "errores": errores,
-            "leidas": leidas,
-            "no_leidas": no_leidas,
-            "por_tipo": por_tipo
-        }), 200
-        
+
+        return jsonify(
+            {
+                "total": total,
+                "enviadas": enviadas,
+                "errores": errores,
+                "leidas": leidas,
+                "no_leidas": no_leidas,
+                "por_tipo": por_tipo,
+            }
+        ), 200
+
     except Exception as e:
         logger.error(f"Error al obtener estadísticas: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8003, debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8003, debug=True)
+
