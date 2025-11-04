@@ -23,6 +23,8 @@ MAIL_FROM = os.getenv('MAIL_FROM', SMTP_USER)
 
 # Base de datos simulada de notificaciones
 notificaciones_db = [
+
+    #CASOS PRUEBAS, NO SON CASOS CARGADOS, SIRVEN POR EL MOMENTO PARA VER EL FRONTEND
     {
         "id": 1,
         "tipo": "vencimiento",
@@ -415,7 +417,7 @@ def consolidado_diario():
 
 # ==================== GESTIÓN DE NOTIFICACIONES ====================
 
-@app.route('/notificaciones', methods=['GET'])
+@app.route('/', methods=['GET'])
 def get_notificaciones():
     """
     Obtiene todas las notificaciones (con filtros opcionales)
