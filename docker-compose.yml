@@ -23,7 +23,7 @@ services:
       - "--entrypoints.web.address=:80"
     
     ports:
-      - "80:80"        # Puerto web principal
+      - "8081:80"        # Puerto web principal
       - "8080:8080"    # Dashboard de Traefik
     
     volumes:
@@ -314,8 +314,11 @@ volumes:
   documentos-uploads:   # PDFs y archivos subidos
   prometheus-data:      # Métricas de Prometheus
   grafana-data:         # Dashboards de Grafana
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> master
   frontend-node-modules: # node_modules para el frontend (evita perder módulos al montar el código)
 
   #------------------- SERVICIO IA (falta aquí)----------------------------------
