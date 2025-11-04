@@ -1,6 +1,19 @@
+# Framework
 Flask==3.0.0
+
+# CORS (Cross-Origin Resource Sharing)
 Flask-CORS==4.0.0
-SQLAlchemy==2.0.23
+
+# Base de datos SQL
+Flask-SQLAlchemy==3.1.1
+mysqlclient==2.2.0
 PyMySQL==1.1.0
-gunicorn==22.0.0
-cryptography==43.0.0
+
+# Variables de entorno
+python-dotenv==1.0.0
+
+# Cliente Redis (para caché y colas)
+redis==5.0.1
+
+# Manejo de fechas
+python-dateutil==2.8.2
