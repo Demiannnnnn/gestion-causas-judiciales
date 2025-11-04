@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import datetime
+import requests
 
 from common.database import db_manager
 from common.models import Causa, Tribunal
@@ -52,44 +53,6 @@ def get_caso(id):
             })
         return jsonify({'error': 'Caso no encontrado'}), 404
 
-# Endpoint para obtener las partes de un caso
-@app.route('/<int:id>/partes', methods=['GET'])
-def get_partes_caso(id):
-    with db_manager.get_session() as session:
-        caso = session.query(Causa).filter(Causa.id_causa == id).first()
-        if not caso:
-            return jsonify({'error': 'Caso no encontrado'}), 404
-        
-        partes = []
-        for causa_parte in caso.partes:
-            parte_info = {
-                'nombre': causa_parte.parte.nombre,
-                'tipo': causa_parte.parte.tipo,
-                'representante': causa_parte.representante.nombre if causa_parte.representante else 'No asignado'
-            }
-            partes.append(parte_info)
-            
-        return jsonify(partes)
-
-# Endpoint para obtener los movimientos de un caso
-@app.route('/<int:id>/movimientos', methods=['GET'])
-def get_movimientos_caso(id):
-    with db_manager.get_session() as session:
-        caso = session.query(Causa).filter(Causa.id_causa == id).first()
-        if not caso:
-            return jsonify({'error': 'Caso no encontrado'}), 404
-        
-        movimientos = []
-        for movimiento in caso.movimientos:
-            movimiento_info = {
-                'fecha': movimiento.fecha.isoformat() if movimiento.fecha else None,
-                'descripcion': movimiento.descripcion,
-                'tipo': movimiento.tipo
-            }
-            movimientos.append(movimiento_info)
-            
-        return jsonify(movimientos)
-
 # Endpoint para crear un nuevo caso
 @app.route('/', methods=['POST'])
 def create_caso():
@@ -104,6 +67,16 @@ def create_caso():
     with db_manager.get_session() as session:
         session.add(nuevo_caso)
         session.flush() # Para obtener el ID antes del commit
+        
+        # Enviar notificación
+        send_notification({
+            "tipo": "movimiento",
+            "caso_rit": nuevo_caso.rit,
+            "destinatario": "admin@judicial.cl", # Asignar a un usuario específico o obtenerlo de la sesión
+            "asunto": f"Nuevo Caso Creado: {nuevo_caso.rit}",
+            "mensaje": f"Se ha creado un nuevo caso con RIT {nuevo_caso.rit}."
+        })
+        
         return jsonify({'id_causa': nuevo_caso.id_causa}), 201
 
 # Endpoint para actualizar un caso
@@ -121,7 +94,22 @@ def update_caso(id):
         caso.estado = data.get('estado', caso.estado)
         caso.descripcion = data.get('descripcion', caso.descripcion)
         
+        # Enviar notificación
+        send_notification({
+            "tipo": "movimiento",
+            "caso_rit": caso.rit,
+            "destinatario": "admin@judicial.cl", # Asignar a un usuario específico o obtenerlo de la sesión
+            "asunto": f"Caso Actualizado: {caso.rit}",
+            "mensaje": f"Se ha actualizado el caso con RIT {caso.rit}."
+        })
+        
         return jsonify({'mensaje': 'Caso actualizado'})
+
+def send_notification(data):
+    try:
+        requests.post("http://notificaciones:8003/notificaciones/send", json=data)
+    except Exception as e:
+        print(f"Error sending notification: {e}")
 
 # Endpoint para eliminar un caso
 @app.route('/<int:id>', methods=['DELETE'])

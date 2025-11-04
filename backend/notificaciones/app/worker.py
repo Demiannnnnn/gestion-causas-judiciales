@@ -53,6 +53,7 @@ def procesar_notificaciones_pendientes():
         print(f"\nSe encontraron {len(notificaciones)} notificaciones pendientes.")
 
         for notif in notificaciones:
+            print(f"Processing notification: {notif.id_notificacion}")
             usuario = session.get(Usuario, notif.id_usuario)
             if not usuario:
                 print(f"Usuario {notif.id_usuario} no encontrado. Marcando notificación como FALLIDO.")

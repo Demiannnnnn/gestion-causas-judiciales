@@ -206,6 +206,7 @@ services:
     build:
       context: ./backend/notificaciones
     container_name: notificaciones
+    command: sh /app/start.sh
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
