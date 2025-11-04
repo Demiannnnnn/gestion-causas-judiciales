@@ -41,6 +41,16 @@ class Causa(Base):
     movimientos = relationship("Movimiento", back_populates="causa")
     partes = relationship('CausaParte', back_populates='causa')
 
+    def to_json(self):
+        return {
+            "id_causa": self.id_causa,
+            "rit": self.rit,
+            "tribunal_id": self.tribunal_id,
+            "fecha_inicio": self.fecha_inicio.isoformat() if self.fecha_inicio else None,
+            "estado": self.estado,
+            "descripcion": self.descripcion
+        }
+
 class Usuario(Base):
     __tablename__ = 'Usuario'
     id_usuario = Column(Integer, primary_key=True)

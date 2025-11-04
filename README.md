@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🏛️ Sistema de Gestión de Causas Judiciales
 
 ## Información del Proyecto
@@ -922,3 +923,11 @@ Para preguntas sobre el proyecto:
 - Catalina Herrera: [email]
 
 **Profesor**: Ricardo Pérez (riperez@utalca.cl)
+
+---
+
+## Para ejecutar
+
+docker-compose build
+docker-compose up
+escribir en el navegador https://locahost:8081/

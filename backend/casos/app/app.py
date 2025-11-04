@@ -13,16 +13,7 @@ CORS(app)  # Habilitar CORS para todas las rutas
 def get_casos():
     with db_manager.get_session() as session:
         casos = session.query(Causa).all()
-        return jsonify([
-            {
-                "id_causa": c.id_causa,
-                "rit": c.rit,
-                "tribunal_id": c.tribunal_id,
-                "fecha_inicio": c.fecha_inicio.isoformat() if c.fecha_inicio else None,
-                "estado": c.estado,
-                "descripcion": c.descripcion
-            } for c in casos
-        ])
+        return jsonify([c.to_json() for c in casos])
 
 # Endpoint para obtener todos los tribunales
 @app.route('/tribunales', methods=['GET'])
@@ -42,14 +33,7 @@ def get_caso(id):
     with db_manager.get_session() as session:
         caso = session.query(Causa).filter(Causa.id_causa == id).first()
         if caso:
-            return jsonify({
-                "id_causa": caso.id_causa,
-                "rit": caso.rit,
-                "tribunal_id": caso.tribunal_id,
-                "fecha_inicio": caso.fecha_inicio.isoformat() if caso.fecha_inicio else None,
-                "estado": caso.estado,
-                "descripcion": caso.descripcion
-            })
+            return jsonify(caso.to_json())
         return jsonify({'error': 'Caso no encontrado'}), 404
 
 # Endpoint para obtener las partes de un caso
@@ -121,7 +105,7 @@ def update_caso(id):
         caso.estado = data.get('estado', caso.estado)
         caso.descripcion = data.get('descripcion', caso.descripcion)
         
-        return jsonify({'mensaje': 'Caso actualizado'})
+        return jsonify(caso.to_json())
 
 # Endpoint para eliminar un caso
 @app.route('/<int:id>', methods=['DELETE'])
