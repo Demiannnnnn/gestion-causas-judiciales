@@ -1,33 +1,22 @@
 FROM python:3.11-slim
 
+# Instalar dependencias del sistema para mysqlclient y bcrypt
+RUN apt-get update && apt-get install -y gcc default-libmysqlclient-dev pkg-config && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
-    gcc \
-    default-libmysqlclient-dev \
-    pkg-config \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copiar requirements
+# Instalar dependencias de Python
 COPY requirements.txt .
-
-# Instalar dependencias Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar proyecto 
-COPY . .
+# Copiar el código de la aplicación
+COPY ./app .
 
-# Crear usuario no-root
+# Crear usuario no privilegiado
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Exponer puerto
 EXPOSE 8000
 
-#se ocupa como framework flask
-ENV FLASK_APP=app.py
-ENV FLASK_ENV=development
-
-# Comando de inicio
+# El FLASK_APP se define en docker-compose.yml
 CMD ["flask", "run", "--host=0.0.0.0", "--port=8000"]

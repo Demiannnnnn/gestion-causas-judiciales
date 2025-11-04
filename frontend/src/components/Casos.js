@@ -1,33 +1,32 @@
 import React, { useState, useEffect } from 'react';
-
-const API_URL = '/api'; // URL base del gateway Traefik
+import { Link } from 'react-router-dom'; // Importar Link
+import apiFetch from '../utils/api';
 
 function Casos() {
   const [casos, setCasos] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [tribunales, setTribunales] = useState([]);
   const [newCaso, setNewCaso] = useState({
     rit: '',
-    tribunal: '',
-    partes: '',
-    fecha_inicio: '',
-    estado: 'Activo'
+    tribunal_id: '',
+    descripcion: ''
   });
 
-  // Cargar casos al montar el componente
+  // Cargar casos y tribunales al montar el componente
   useEffect(() => {
     fetchCasos();
+    fetchTribunales();
   }, []);
 
-  const fetchCasos = (query = '') => {
-    fetch(`${API_URL}/casos?query=${query}`)
-      .then(response => response.json())
+  const fetchCasos = () => {
+    apiFetch('/api/casos')
       .then(data => setCasos(data))
       .catch(error => console.error('Error al obtener casos:', error));
   };
 
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-    fetchCasos(e.target.value);
+  const fetchTribunales = () => {
+    apiFetch('/api/casos/tribunales')
+      .then(data => setTribunales(data))
+      .catch(error => console.error('Error al obtener tribunales:', error));
   };
 
   const handleInputChange = (e) => {
@@ -37,27 +36,29 @@ function Casos() {
 
   const handleCreateCaso = (e) => {
     e.preventDefault();
-    fetch(`${API_URL}/casos`, {
+    const payload = {
+        rit: newCaso.rit,
+        tribunal_id: parseInt(newCaso.tribunal_id, 10),
+        descripcion: newCaso.descripcion
+    };
+
+    apiFetch('/api/casos', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(newCaso),
+      body: JSON.stringify(payload),
     })
-      .then(response => response.json())
-      .then(data => {
-        setCasos(prevCasos => [...prevCasos, data]);
-        setNewCaso({ rit: '', tribunal: '', partes: '', fecha_inicio: '', estado: 'Activo' }); // Limpiar formulario
+      .then(() => {
+        fetchCasos(); // Recargar la lista de casos
+        setNewCaso({ rit: '', tribunal_id: '', descripcion: '' }); // Limpiar formulario
       })
       .catch(error => console.error('Error al crear caso:', error));
   };
 
   const handleDeleteCaso = (id) => {
-    fetch(`${API_URL}/casos/${id}`, {
+    apiFetch(`/api/casos/${id}`, {
       method: 'DELETE',
     })
       .then(() => {
-        setCasos(prevCasos => prevCasos.filter(caso => caso.id !== id));
+        setCasos(prevCasos => prevCasos.filter(caso => caso.id_causa !== id));
       })
       .catch(error => console.error('Error al eliminar caso:', error));
   };
@@ -72,27 +73,23 @@ function Casos() {
         <div className="card-body">
           <form onSubmit={handleCreateCaso}>
             <div className="row mb-3">
-              <div className="col">
-                <input type="text" className="form-control" name="rit" placeholder="RIT" value={newCaso.rit} onChange={handleInputChange} required />
+              <div className="col-md-6">
+                <label htmlFor="rit" className="form-label">RIT</label>
+                <input type="text" className="form-control" id="rit" name="rit" placeholder="Ej: C-123-2024" value={newCaso.rit} onChange={handleInputChange} required />
               </div>
-              <div className="col">
-                <input type="text" className="form-control" name="tribunal" placeholder="Tribunal" value={newCaso.tribunal} onChange={handleInputChange} required />
+              <div className="col-md-6">
+                <label htmlFor="tribunal_id" className="form-label">Tribunal</label>
+                <select className="form-select" id="tribunal_id" name="tribunal_id" value={newCaso.tribunal_id} onChange={handleInputChange} required>
+                  <option value="" disabled>Seleccione un tribunal...</option>
+                  {tribunales.map(t => (
+                    <option key={t.id_tribunal} value={t.id_tribunal}>{t.nombre}</option>
+                  ))}
+                </select>
               </div>
             </div>
-            <div className="row mb-3">
-                <div className="col">
-                    <input type="text" className="form-control" name="partes" placeholder="Partes" value={newCaso.partes} onChange={handleInputChange} required />
-                </div>
-                <div className="col">
-                    <input type="date" className="form-control" name="fecha_inicio" value={newCaso.fecha_inicio} onChange={handleInputChange} required />
-                </div>
-                <div className="col">
-                     <select className="form-select" name="estado" value={newCaso.estado} onChange={handleInputChange}>
-                        <option value="Activo">Activo</option>
-                        <option value="Archivado">Archivado</option>
-                        <option value="Congelado">Congelado</option>
-                    </select>
-                </div>
+            <div className="mb-3">
+                <label htmlFor="descripcion" className="form-label">Descripción</label>
+                <textarea className="form-control" id="descripcion" name="descripcion" rows="3" value={newCaso.descripcion} onChange={handleInputChange}></textarea>
             </div>
             <button type="submit" className="btn btn-primary">Crear Caso</button>
           </form>
@@ -103,32 +100,26 @@ function Casos() {
       <div className="card">
         <div className="card-header">Listado de Casos</div>
         <div className="card-body">
-            <div class="input-group mb-3">
-                <span class="input-group-text" id="basic-addon1">Buscar</span>
-                <input type="text" className="form-control" placeholder="Buscar por RIT o tribunal..." value={searchTerm} onChange={handleSearchChange} />
-            </div>
-          
           <table className="table">
             <thead>
               <tr>
+                <th>ID Causa</th>
                 <th>RIT</th>
-                <th>Tribunal</th>
-                <th>Partes</th>
-                <th>Fecha de Inicio</th>
                 <th>Estado</th>
+                <th>Descripción</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {casos.map(caso => (
-                <tr key={caso.id}>
+                <tr key={caso.id_causa}>
+                  <td>{caso.id_causa}</td>
                   <td>{caso.rit}</td>
-                  <td>{caso.tribunal}</td>
-                  <td>{caso.partes}</td>
-                  <td>{caso.fecha_inicio}</td>
-                  <td><span className={`badge bg-${caso.estado === 'Activo' ? 'success' : 'secondary'}`}>{caso.estado}</span></td>
+                  <td><span className={`badge bg-${caso.estado === 'ACTIVA' ? 'success' : 'secondary'}`}>{caso.estado}</span></td>
+                  <td>{caso.descripcion}</td>
                   <td>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDeleteCaso(caso.id)}>Eliminar</button>
+                    <Link to={`/casos/${caso.id_causa}`} className="btn btn-info btn-sm me-2">Detalles</Link>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDeleteCaso(caso.id_causa)}>Eliminar</button>
                   </td>
                 </tr>
               ))}

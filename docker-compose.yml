@@ -38,7 +38,8 @@ services:
     restart: unless-stopped
 
   mysql:
-    image: mysql:8.0
+    build:
+      context: ./db
     container_name: mysql
     
     environment:
@@ -59,7 +60,7 @@ services:
       - mysql-data:/var/lib/mysql
 
       # Scripts SQL que se ejecutan al crear la BD
-      - ./db/mysql/init:/docker-entrypoint-initdb.d
+      - ./db/mysql:/docker-entrypoint-initdb.d
     ports:
       - "3307:3306"
     
@@ -108,7 +109,7 @@ services:
     container_name: autenticacion
     
     environment:
-      - FLASK_APP=app/app.py
+      - FLASK_APP=app.py
       - FLASK_ENV=development 
 
       # URL de conexión a MySQL     
@@ -122,7 +123,8 @@ services:
       
     
     volumes:
-      - ./backend/autenticacion:/app
+      - ./backend/autenticacion/app:/app
+      - ./backend/common:/app/common
     
     labels:
       #codigo para la conexion con traefic (gateway)
@@ -151,13 +153,14 @@ services:
       context: ./backend/casos
     container_name: casos
     environment:
-      - FLASK_APP=app/app.py
+      - FLASK_APP=app.py
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       #  Base de datos 1 de Redis 
       - REDIS_URL=redis://redis:6379/1
     volumes:
-      - ./backend/casos:/app
+      - ./backend/casos/app:/app
+      - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.casos.rule=PathPrefix(`/api/casos`)"
@@ -176,13 +179,14 @@ services:
       context: ./backend/documentos
     container_name: documentos
     environment:
-      - FLASK_APP=app/app.py
+      - FLASK_APP=app.py
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       - UPLOAD_FOLDER=/app/uploads
       # Carpeta donde se guardan los PDFs subidos
     volumes:
-      - ./backend/documentos:/app
+      - ./backend/documentos/app:/app
+      - ./backend/common:/app/common
       - documentos-uploads:/app/uploads
 
     labels:
@@ -203,17 +207,18 @@ services:
       context: ./backend/notificaciones
     container_name: notificaciones
     environment:
-      - FLASK_APP=app/app.py
+      - FLASK_APP=app.py
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/2
-      - MAIL_SERVER=${MAIL_SERVER}
+      - MAIL_SERVER=${MAIL_SERVER:-mailhog}
       # Servidor SMTP para enviar emails
-      - MAIL_PORT=${MAIL_PORT}
-      - MAIL_USERNAME=${MAIL_USERNAME}
-      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_PORT=${MAIL_PORT:-1025}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
     volumes:
-      - ./backend/notificaciones:/app
+      - ./backend/notificaciones/app:/app
+      - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.notif.rule=PathPrefix(`/api/notificaciones`)"
@@ -287,6 +292,15 @@ services:
     depends_on:
       - prometheus
 
+  mailhog:
+    image: mailhog/mailhog
+    container_name: mailhog
+    ports:
+      - "1025:1025" # Puerto SMTP
+      - "8025:8025" # Interfaz Web
+    networks:
+      - app-network
+
 networks:
 # Bridge: Red virtual privada para los contenedores
   app-network:
@@ -300,6 +314,11 @@ volumes:
   documentos-uploads:   # PDFs y archivos subidos
   prometheus-data:      # Métricas de Prometheus
   grafana-data:         # Dashboards de Grafana
+<<<<<<< HEAD
+
+
+=======
+>>>>>>> master
   frontend-node-modules: # node_modules para el frontend (evita perder módulos al montar el código)
 
   #------------------- SERVICIO IA (falta aquí)----------------------------------
