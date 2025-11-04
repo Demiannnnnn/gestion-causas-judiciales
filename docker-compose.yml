@@ -301,6 +301,46 @@ services:
     networks:
       - app-network
 
+  #------------------- SERVICIO IA ----------------------------------
+  ollama:
+    build:
+      context: ./ollama_image
+    container_name: ollama
+    environment:
+      - AMD_VISIBLE_DEVICES=all
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  ia_service:
+    build:
+      context: ./backend/ia_service
+    container_name: ia_service
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      - OLLAMA_API_URL=http://ollama:11434
+    volumes:
+      - ./backend/ia_service/app:/app
+      - ./backend/common:/app/common
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ia.rule=PathPrefix(`/api/ia`)"
+      - "traefik.http.middlewares.ia-strip.stripprefix.prefixes=/api/ia"
+      - "traefik.http.routers.ia.middlewares=ia-strip"
+      - "traefik.http.services.ia.loadbalancer.server.port=5002"
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - ollama
+      - mysql
+
 networks:
 # Bridge: Red virtual privada para los contenedores
   app-network:
@@ -315,5 +355,4 @@ volumes:
   prometheus-data:      # Métricas de Prometheus
   grafana-data:         # Dashboards de Grafana
   frontend-node-modules: # node_modules para el frontend (evita perder módulos al montar el código)
-
-  #------------------- SERVICIO IA (falta aquí)----------------------------------
+  ollama_data:          # Modelos de IA de Ollama
