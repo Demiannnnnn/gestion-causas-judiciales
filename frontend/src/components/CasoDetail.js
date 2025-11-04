@@ -3,30 +3,50 @@ import { useParams, useNavigate } from 'react-router-dom';
 import apiFetch from '../utils/api';
 
 function CasoDetail() {
-  const [caso, setCaso] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ rit: '', descripcion: '', estado: '' });
   const { id } = useParams();
   const navigate = useNavigate();
+  const [caso, setCaso] = useState(null);
+  const [partes, setPartes] = useState([]);
+  const [movimientos, setMovimientos] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    rit: '',
+    descripcion: '',
+    estado: 'ACTIVA',
+  });
 
   useEffect(() => {
+    // Obtener detalles del caso
     apiFetch(`/api/casos/${id}`)
       .then(data => {
         setCaso(data);
-        setFormData({ rit: data.rit, descripcion: data.descripcion, estado: data.estado });
+        setFormData({
+          rit: data.rit,
+          descripcion: data.descripcion,
+          estado: data.estado,
+        });
       })
       .catch(error => console.error('Error al obtener detalles del caso:', error));
+
+    // Obtener partes del caso
+    apiFetch(`/api/casos/${id}/partes`)
+      .then(data => setPartes(data))
+      .catch(error => console.error('Error al obtener partes del caso:', error));
+
+    // Obtener movimientos del caso
+    apiFetch(`/api/casos/${id}/movimientos`)
+      .then(data => setMovimientos(data))
+      .catch(error => console.error('Error al obtener movimientos del caso:', error));
   }, [id]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prevState => ({ ...prevState, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleUpdateCaso = (e) => {
     e.preventDefault();
-    apiFetch(`/api/casos/${id}`,
-     {
+    apiFetch(`/api/casos/${id}`, {
       method: 'PUT',
       body: JSON.stringify(formData),
     })
@@ -34,7 +54,7 @@ function CasoDetail() {
         setCaso(updatedCaso);
         setIsEditing(false);
       })
-      .catch(error => console.error('Error al actualizar caso:', error));
+      .catch(error => console.error('Error al actualizar el caso:', error));
   };
 
   if (!caso) {
@@ -42,43 +62,85 @@ function CasoDetail() {
   }
 
   return (
-    <div className="card">
-      <div className="card-header d-flex justify-content-between align-items-center">
-        Detalles del Caso
-        <button className="btn btn-secondary btn-sm" onClick={() => setIsEditing(!isEditing)}>
-          {isEditing ? 'Cancelar' : 'Editar'}
-        </button>
-      </div>
-      <div className="card-body">
-        {isEditing ? (
-          <form onSubmit={handleUpdateCaso}>
-            <div className="mb-3">
-              <label htmlFor="rit" className="form-label">RIT</label>
-              <input type="text" className="form-control" id="rit" name="rit" value={formData.rit} onChange={handleInputChange} required />
-            </div>
-            <div className="mb-3">
-              <label htmlFor="descripcion" className="form-label">Descripción</label>
-              <textarea className="form-control" id="descripcion" name="descripcion" rows="3" value={formData.descripcion} onChange={handleInputChange}></textarea>
-            </div>
-            <div className="mb-3">
-              <label htmlFor="estado" className="form-label">Estado</label>
-              <select className="form-select" id="estado" name="estado" value={formData.estado} onChange={handleInputChange}>
-                <option value="ACTIVA">Activa</option>
-                <option value="ARCHIVADA">Archivada</option>
-              </select>
-            </div>
-            <button type="submit" className="btn btn-primary">Guardar Cambios</button>
-          </form>
-        ) : (
-          <div>
-            <h5 className="card-title">RIT: {caso.rit}</h5>
-            <p className="card-text"><strong>ID Causa:</strong> {caso.id_causa}</p>
-            <p className="card-text"><strong>Descripción:</strong> {caso.descripcion}</p>
-            <p className="card-text"><strong>Estado:</strong> <span className={`badge bg-${caso.estado === 'ACTIVA' ? 'success' : 'secondary'}`}>{caso.estado}</span></p>
-            <p className="card-text"><strong>Fecha de Inicio:</strong> {new Date(caso.fecha_inicio).toLocaleString()}</p>
-            <button className="btn btn-primary" onClick={() => navigate('/casos')}>Volver</button>
+    <div>
+      <h2>Detalle del Caso: {caso.rit}</h2>
+
+      {isEditing ? (
+        <div className="card mb-4">
+          <div className="card-header">Editando Caso</div>
+          <div className="card-body">
+            <form onSubmit={handleUpdateCaso}>
+              <div className="mb-3">
+                <label htmlFor="rit" className="form-label">RIT</label>
+                <input type="text" className="form-control" id="rit" name="rit" value={formData.rit} onChange={handleInputChange} required />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="descripcion" className="form-label">Descripción</label>
+                <textarea className="form-control" id="descripcion" name="descripcion" rows="3" value={formData.descripcion} onChange={handleInputChange}></textarea>
+              </div>
+              <div className="mb-3">
+                <label htmlFor="estado" className="form-label">Estado</label>
+                <select className="form-select" id="estado" name="estado" value={formData.estado} onChange={handleInputChange}>
+                  <option value="ACTIVA">Activa</option>
+                  <option value="ARCHIVADA">Archivada</option>
+                </select>
+              </div>
+              <button type="submit" className="btn btn-primary">Guardar Cambios</button>
+              <button type="button" className="btn btn-secondary ms-2" onClick={() => setIsEditing(false)}>Cancelar</button>
+            </form>
           </div>
-        )}
+        </div>
+      ) : (
+        <div className="card mb-4">
+          <div className="card-header">Información General</div>
+          <div className="card-body">
+            <p><strong>ID Causa:</strong> {caso.id_causa}</p>
+            <p><strong>Estado:</strong> <span className={`badge bg-${caso.estado === 'ACTIVA' ? 'success' : 'secondary'}`}>{caso.estado}</span></p>
+            <p><strong>Fecha de Inicio:</strong> {new Date(caso.fecha_inicio).toLocaleDateString()}</p>
+            <p><strong>Descripción:</strong> {caso.descripcion}</p>
+            <button className="btn btn-primary" onClick={() => setIsEditing(true)}>Editar</button>
+            <button className="btn btn-secondary ms-2" onClick={() => navigate('/casos')}>Volver</button>
+          </div>
+        </div>
+      )}
+
+      <div className="card mb-4">
+        <div className="card-header">Partes Involucradas</div>
+        <div className="card-body">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Representante</th>
+              </tr>
+            </thead>
+            <tbody>
+              {partes.map((parte, index) => (
+                <tr key={index}>
+                  <td>{parte.nombre}</td>
+                  <td>{parte.tipo}</td>
+                  <td>{parte.representante}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">Línea de Tiempo (Movimientos)</div>
+        <div className="card-body">
+          <ul className="list-group">
+            {movimientos.map((movimiento, index) => (
+              <li key={index} className="list-group-item">
+                <p><strong>Fecha:</strong> {new Date(movimiento.fecha).toLocaleString()}</p>
+                <p><strong>Tipo:</strong> {movimiento.tipo}</p>
+                <p><strong>Descripción:</strong> {movimiento.descripcion}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </div>
   );

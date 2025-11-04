@@ -1,3 +1,5 @@
+# DOCKERFILE del Frontend
+
 # Usar una imagen base de Node.js para desarrollo
 FROM node:16-alpine
 

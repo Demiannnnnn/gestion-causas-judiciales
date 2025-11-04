@@ -300,10 +300,513 @@ docker stats
 
 ## Sistema de Respaldos
 
+## 📋 Descripción
+
+Sistema automatizado de respaldos para el proyecto de Causas Judiciales. Incluye scripts para respaldar y restaurar:
+
+- **Base de datos MySQL** (esquema, datos, usuarios)
+- **Archivos y documentos** (uploads de documentos judiciales)
+- **Configuraciones del sistema** (docker-compose, .env, scripts)
 
 ---
 
-## 📊 Monitoreo del Sistema
+## Uso Rápido
+
+### Respaldo Completo del Sistema
+
+```bash
+# Ejecutar respaldo completo (recomendado)
+cd scripts/backup
+./backup-all.sh
+```
+
+Este comando respaldará automáticamente:
+- ✅ Base de datos completa
+- ✅ Todos los archivos cargados
+- ✅ Configuraciones del sistema
+- ✅ Scripts de administración
+
+### Respaldos Individuales
+
+```bash
+# Solo base de datos
+./backup-db.sh
+
+# Solo archivos
+./backup-files.sh
+```
+
+---
+
+## Scripts Disponibles
+
+### 1. `backup-db.sh` - Respaldo de Base de Datos
+
+**¿Qué hace?**
+- Exporta toda la base de datos MySQL
+- Comprime el archivo SQL con gzip
+- Mantiene los últimos 7 días de respaldos
+- Verifica la integridad del backup
+
+**Uso:**
+```bash
+./backup-db.sh
+```
+
+**Salida:**
+```
+backups/database/
+├── db_causas_judiciales_db_2024-11-02_14-30-00.sql.gz
+├── db_causas_judiciales_db_2024-11-01_14-30-00.sql.gz
+└── ...
+```
+
+**Configuración:**
+Puedes modificar estas variables en el script o en `.env`:
+- `MYSQL_HOST`: Host de MySQL (default: `mysql`)
+- `MYSQL_USER`: Usuario de MySQL (default: `admin_db`)
+- `MYSQL_PASSWORD`: Contraseña
+- `MYSQL_DATABASE`: Nombre de la BD (default: `causas_judiciales_db`)
+- `BACKUP_RETENTION_DAYS`: Días de retención (default: `7`)
+
+---
+
+### 2. `restore-db.sh` - Para estaurar la Base de Datos
+
+**¿Qué hace?**
+- Lista backups disponibles
+- Crea backup de seguridad antes de restaurar
+- Restaura la base de datos desde un backup
+- Verifica la restauración
+
+**Uso:**
+```bash
+# Ver backups disponibles
+./restore-db.sh --list
+
+# Restaurar el más reciente
+./restore-db.sh --latest
+
+# Restaurar un backup específico
+./restore-db.sh db_causas_judiciales_db_2024-11-02_14-30-00.sql.gz
+```
+
+**⚠️ ADVERTENCIA:** Esta operación SOBRESCRIBIRÁ la base de datos actual. Siempre crea un backup de seguridad antes de proceder.
+
+**Proceso de restauración:**
+1. Verifica conectividad con MySQL
+2. Crea backup de seguridad de la BD actual
+3. Elimina la base de datos actual
+4. Restaura desde el backup seleccionado
+5. Verifica que la restauración fue exitosa
+
+---
+
+### 3. `backup-files.sh` - Para Respaldo de Archivos
+
+**¿Qué hace?**
+- Respalda todos los archivos cargados (documentos judiciales)
+- Crea un archivo tar.gz comprimido
+- Mantiene los últimos 7 días de respaldos
+- Verifica la integridad del backup
+
+**Uso:**
+```bash
+./backup-files.sh
+```
+
+**Directorios respaldados:**
+- `backend/documentos/uploads/` - Documentos cargados por usuarios
+
+**Salida:**
+```
+backups/files/
+├── files_2024-11-02_14-35-00.tar.gz
+├── files_2024-11-01_14-35-00.tar.gz
+└── ...
+```
+
+---
+
+### 4. `restore-files.sh` - Para Restaurar Archivos
+
+**¿Qué hace?**
+- Lista backups de archivos disponibles
+- Crea backup de seguridad de archivos actuales
+- Restaura archivos desde un backup
+- Verifica la restauración
+
+**Uso:**
+```bash
+# Ver backups disponibles
+./restore-files.sh --list
+
+# Restaurar el más reciente
+./restore-files.sh --latest
+
+# Restaurar un backup específico
+./restore-files.sh files_2024-11-02_14-35-00.tar.gz
+```
+
+---
+
+### 5. `backup-all.sh` - Para un Respaldo Completo
+
+**¿Qué hace?**
+- Ejecuta backup-db.sh
+- Ejecuta backup-files.sh
+- Respalda configuraciones (docker-compose.yml, .env.example, etc.)
+- Respalda scripts de administración
+- Crea un archivo consolidado con todo
+- Genera un MANIFEST con información del backup
+- Mantiene los últimos 30 días de backups completos
+
+**Uso:**
+```bash
+./backup-all.sh
+```
+
+**Salida:**
+```
+backups/complete/
+└── backup_complete_2024-11-02_14-40-00.tar.gz
+    ├── db_causas_judiciales_db_2024-11-02_14-40-00.sql.gz
+    ├── files_2024-11-02_14-40-00.tar.gz
+    ├── configs/
+    │   ├── docker-compose.yml
+    │   ├── .env.example
+    │   ├── monitoring/
+    │   └── scripts/
+    └── MANIFEST.txt
+```
+
+**Contenido del MANIFEST.txt:**
+```
+╔════════════════════════════════════════╗
+║   MANIFIESTO DE RESPALDO COMPLETO      ║
+╚════════════════════════════════════════╝
+
+INFORMACIÓN DEL RESPALDO
+========================
+Fecha de creación: 2024-11-02 14:40:00
+Nombre del backup: backup_2024-11-02_14-40-00
+Hostname: servidor-judicial
+Usuario: admin
+
+CONTENIDO DEL BACKUP
+====================
+- Base de datos (15.3 MB)
+- Archivos documentos (234.7 MB)
+- Configuraciones (2.1 MB)
+- Scripts (0.5 MB)
+
+Total: 252.6 MB
+```
+
+---
+
+## 🔄 Automatización con Cron
+
+### Configurar Backups Automáticos
+
+Para ejecutar backups automáticamente, se pueden agrega estos trabajos a cron:
+
+```bash
+# Editar crontab
+crontab -e
+
+# Agregar estas líneas:
+
+# Backup completo diario a las 2 AM
+0 2 * * * cd /ruta/al/proyecto/scripts/backup && ./backup-all.sh >> /var/log/backup.log 2>&1
+
+# Backup de BD cada 6 horas
+0 */6 * * * cd /ruta/al/proyecto/scripts/backup && ./backup-db.sh >> /var/log/backup-db.log 2>&1
+
+# Backup de archivos cada 12 horas
+0 */12 * * * cd /ruta/al/proyecto/scripts/backup && ./backup-files.sh >> /var/log/backup-files.log 2>&1
+```
+
+### Usando Docker Compose (Recomendado)
+
+Ya incluimos un servicio de backup automatizado en `docker-compose.yml`:
+
+```yaml
+backup-service:
+  build:
+    context: ./scripts/backup
+    dockerfile: Dockerfile.backup
+  container_name: backup-service
+  environment:
+    - BACKUP_SCHEDULE=0 2 * * *  # Diario a las 2 AM
+    - BACKUP_RETENTION_DAYS=7
+  volumes:
+    - ./backups:/backups
+    - ./db:/db
+    - ./backend:/backend
+  networks:
+    - app-network
+  restart: unless-stopped
+```
+
+**Para cambiar la frecuencia**, edita `BACKUP_SCHEDULE` usando formato cron:
+- `0 2 * * *` - Diario a las 2 AM
+- `0 */6 * * *` - Cada 6 horas
+- `0 0 * * 0` - Cada domingo a medianoche
+- `*/30 * * * *` - Cada 30 minutos
+
+---
+
+## Estructura de Directorios de Backup
+
+```
+backups/
+├── database/              # Backups de base de datos
+│   ├── db_causas_judiciales_db_2024-11-02_14-30-00.sql.gz
+│   ├── db_causas_judiciales_db_2024-11-01_14-30-00.sql.gz
+│   └── ...
+│
+├── files/                 # Backups de archivos
+│   ├── files_2024-11-02_14-35-00.tar.gz
+│   ├── files_2024-11-01_14-35-00.tar.gz
+│   └── ...
+│
+└── complete/              # Backups completos consolidados
+    ├── backup_complete_2024-11-02_14-40-00.tar.gz
+    ├── backup_complete_2024-11-01_14-40-00.tar.gz
+    └── ...
+```
+
+---
+
+## Seguridad y Mejores Prácticas
+
+### Protección de Backups
+
+1. **Permisos restrictivos:**
+```bash
+chmod 700 backups/
+chmod 600 backups/**/*.gz
+```
+
+2. **Excluir del control de versiones:**
+Ya está configurado en `.gitignore`:
+```
+backups/
+*.sql
+*.sql.gz
+*.tar.gz
+```
+
+3. **Encriptar backups sensibles:**
+```bash
+# Encriptar un backup
+gpg --symmetric --cipher-algo AES256 backup_complete_2024-11-02.tar.gz
+
+# Desencriptar
+gpg --decrypt backup_complete_2024-11-02.tar.gz.gpg > backup.tar.gz
+```
+
+### Almacenamiento Externo
+
+**Recomendación:** Los backups deberían copiarse a ubicaciones externas:
+
+```bash
+# Copiar a servidor remoto (SSH/SCP)
+scp backups/complete/backup_complete_*.tar.gz user@servidor-backup:/backups/judicial/
+
+# Copiar a almacenamiento en la nube (AWS S3)
+aws s3 cp backups/complete/backup_complete_*.tar.gz s3://mi-bucket/backups/
+
+# Copiar a Google Drive (usando rclone)
+rclone copy backups/complete/ gdrive:Backups/Judicial/
+```
+
+---
+
+## Verificación de Backups
+
+### Verificar Integridad
+
+```bash
+# Verificar un backup de BD
+gunzip -t backups/database/db_*.sql.gz
+
+# Verificar un backup de archivos
+tar -tzf backups/files/files_*.tar.gz > /dev/null
+
+# Verificar un backup completo
+tar -tzf backups/complete/backup_complete_*.tar.gz > /dev/null
+```
+
+### Prueba de Restauración
+
+**Es crítico probar las restauraciones regularmente:**
+
+```bash
+# 1. Crear un entorno de prueba
+docker-compose -f docker-compose.test.yml up -d
+
+# 2. Restaurar el backup en el entorno de prueba
+./restore-db.sh --latest
+
+# 3. Verificar que los datos son correctos
+docker exec mysql mysql -u admin_db -padmin -e "SELECT COUNT(*) FROM causas_judiciales_db.casos;"
+
+# 4. Detener el entorno de prueba
+docker-compose -f docker-compose.test.yml down
+```
+
+---
+
+## 🐛 Solución de Posibles Problemas
+
+### Error: "No se puede conectar a MySQL"
+
+**Causa:** El contenedor de MySQL no está corriendo o no está listo.
+
+**Solución:**
+```bash
+# Verificar que MySQL esté corriendo
+docker-compose ps mysql
+
+# Ver logs de MySQL
+docker-compose logs mysql
+
+# Reiniciar MySQL
+docker-compose restart mysql
+
+# Esperar a que esté listo
+docker-compose exec mysql mysqladmin ping -h localhost --silent
+```
+
+### Error: "Permission denied"
+
+**Causa:** Los scripts no tienen permisos de ejecución.
+
+**Solución:**
+```bash
+# Dar permisos de ejecución
+chmod +x scripts/backup/*.sh
+
+# O todos los scripts
+find scripts/ -name "*.sh" -exec chmod +x {} \;
+```
+
+### Error: "Backup corrupto"
+
+**Causa:** El archivo se dañó durante la creación o copia.
+
+**Solución:**
+```bash
+# Verificar integridad
+gunzip -t backup.sql.gz
+
+# Si está corrupto, eliminar y crear uno nuevo
+rm backup.sql.gz
+./backup-db.sh
+```
+
+### Espacio en disco insuficiente
+
+**Síntoma:** Backups fallan con errores de espacio.
+
+**Solución:**
+```bash
+# Ver espacio disponible
+df -h
+
+# Ver tamaño de backups
+du -sh backups/
+
+# Limpiar backups antiguos manualmente
+find backups/ -type f -mtime +30 -delete
+
+# Reducir período de retención en los scripts
+# Editar BACKUP_RETENTION_DAYS=3
+```
+
+---
+
+## Ejemplos de Uso
+
+### Escenario 1: Backup Diario Antes de Actualización
+
+```bash
+#!/bin/bash
+# Script para actualizar el sistema con backup previo
+
+echo "Creando backup antes de actualizar..."
+cd scripts/backup
+./backup-all.sh
+
+echo "Actualizando sistema..."
+cd ../..
+git pull
+docker-compose build
+docker-compose up -d
+
+echo "Actualización completada. Backup disponible en backups/complete/"
+```
+
+### Escenario 2: Migración a Nuevo Servidor
+
+```bash
+# En el servidor antiguo:
+./backup-all.sh
+BACKUP=$(ls -t backups/complete/backup_complete_*.tar.gz | head -n 1)
+scp $BACKUP nuevo-servidor:/tmp/
+
+# En el servidor nuevo:
+cd /ruta/proyecto
+tar -xzf /tmp/backup_complete_*.tar.gz
+cd scripts/backup
+./restore-db.sh --latest
+./restore-files.sh --latest
+```
+
+### Escenario 3: Recuperación de Desastre
+
+```bash
+# Si la base de datos se corrompe
+./restore-db.sh --latest
+
+# Si se eliminaron archivos por error
+./restore-files.sh --latest
+
+# Si el sistema completo falló
+tar -xzf backups/complete/backup_complete_<fecha>.tar.gz
+# Restaurar cada componente individualmente
+```
+
+---
+
+## Soporte
+
+Para problemas con los scripts de backup:
+
+1. Revisar los logs: `docker-compose logs backup-service`
+2. Verificar permisos: `ls -la scripts/backup/`
+3. Compruebar espacio: `df -h`
+4. Consultar este README
+5. Contactar al administrador del sistema
+
+---
+
+## Changelog
+
+### Versión 1.0.0 (2024-11-02)
+- ✅ Script inicial de backup de BD
+- ✅ Script de restauración de BD
+- ✅ Script de backup de archivos
+- ✅ Script de restauración de archivos
+- ✅ Script de backup completo
+- ✅ Automatización con cron
+- ✅ Documentación completa
+
+---
+
+## Monitoreo del Sistema
 
 ### Acceso a Grafana
 1. Abrir http://localhost:3000

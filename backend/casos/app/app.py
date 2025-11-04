@@ -36,6 +36,44 @@ def get_caso(id):
             return jsonify(caso.to_json())
         return jsonify({'error': 'Caso no encontrado'}), 404
 
+# Endpoint para obtener las partes de un caso
+@app.route('/<int:id>/partes', methods=['GET'])
+def get_partes_caso(id):
+    with db_manager.get_session() as session:
+        caso = session.query(Causa).filter(Causa.id_causa == id).first()
+        if not caso:
+            return jsonify({'error': 'Caso no encontrado'}), 404
+        
+        partes = []
+        for causa_parte in caso.partes:
+            parte_info = {
+                'nombre': causa_parte.parte.nombre,
+                'tipo': causa_parte.parte.tipo,
+                'representante': causa_parte.representante.nombre if causa_parte.representante else 'No asignado'
+            }
+            partes.append(parte_info)
+            
+        return jsonify(partes)
+
+# Endpoint para obtener los movimientos de un caso
+@app.route('/<int:id>/movimientos', methods=['GET'])
+def get_movimientos_caso(id):
+    with db_manager.get_session() as session:
+        caso = session.query(Causa).filter(Causa.id_causa == id).first()
+        if not caso:
+            return jsonify({'error': 'Caso no encontrado'}), 404
+        
+        movimientos = []
+        for movimiento in caso.movimientos:
+            movimiento_info = {
+                'fecha': movimiento.fecha.isoformat() if movimiento.fecha else None,
+                'descripcion': movimiento.descripcion,
+                'tipo': movimiento.tipo
+            }
+            movimientos.append(movimiento_info)
+            
+        return jsonify(movimientos)
+
 # Endpoint para crear un nuevo caso
 @app.route('/', methods=['POST'])
 def create_caso():
