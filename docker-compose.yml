@@ -206,31 +206,38 @@ services:
     build:
       context: ./backend/notificaciones
     container_name: notificaciones
+    command: sh /app/start.sh
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/2
-      - MAIL_SERVER=${SMTP_SERVER:-mailhog}
+      - MAIL_SERVER=${MAIL_SERVER:-mailhog}
       # Servidor SMTP para enviar emails
-      - MAIL_PORT=${SMTP_PORT:-1025}
-      - MAIL_USERNAME=${SMTP_USERNAME:-}
-      - MAIL_PASSWORD=${SMTP_PASSWORD:-}
+      - MAIL_PORT=${MAIL_PORT:-1025}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
     volumes:
       - ./backend/notificaciones/app:/app
       - ./backend/common:/app/common
+
+  reportes:
+    build:
+      context: ./backend/reportes
+    container_name: reportes
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+    volumes:
+      - ./backend/reportes:/app
+      - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.notif.rule=PathPrefix(`/api/notificaciones`)"
-      - "traefik.http.middlewares.notif-strip.stripprefix.prefixes=/api/notificaciones"
-      - "traefik.http.routers.notif.middlewares=notif-strip"
-      - "traefik.http.services.notif.loadbalancer.server.port=8003"
-    networks:
-      - app-network
-    restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
+      - "traefik.http.routers.reportes.rule=PathPrefix(`/api/reportes`)"
+      - "traefik.http.middlewares.reportes-strip.stripprefix.prefixes=/api/reportes"
+      - "traefik.http.routers.reportes.middlewares=reportes-strip"
+      - "traefik.http.services.reportes.loadbalancer.server.port=8004"
 
   frontend:
     build:
