@@ -79,6 +79,7 @@ def update_caso(id):
         caso.descripcion = data.get('descripcion', caso.descripcion)
         
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Enviar notificación
         send_notification({
             "tipo": "movimiento",
@@ -92,6 +93,9 @@ def update_caso(id):
 =======
         return jsonify(caso.to_json())
 >>>>>>> master
+=======
+        return jsonify(caso.to_json())
+>>>>>>> 32a54c76400ffb5b286a99b00821929ec2447f25
 
 def send_notification(data):
     try:
