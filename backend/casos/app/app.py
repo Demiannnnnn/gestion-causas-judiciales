@@ -78,20 +78,7 @@ def update_caso(id):
         caso.estado = data.get('estado', caso.estado)
         caso.descripcion = data.get('descripcion', caso.descripcion)
         
-<<<<<<< HEAD
-        # Enviar notificación
-        send_notification({
-            "tipo": "movimiento",
-            "caso_rit": caso.rit,
-            "destinatario": "admin@judicial.cl", # Asignar a un usuario específico o obtenerlo de la sesión
-            "asunto": f"Caso Actualizado: {caso.rit}",
-            "mensaje": f"Se ha actualizado el caso con RIT {caso.rit}."
-        })
-        
-        return jsonify({'mensaje': 'Caso actualizado'})
-=======
         return jsonify(caso.to_json())
->>>>>>> master
 
 def send_notification(data):
     try:
