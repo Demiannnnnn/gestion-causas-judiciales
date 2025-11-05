@@ -129,7 +129,7 @@ function Documentos() {
                     <tr key={doc.id_documento}>
                       <td>{doc.id_documento}</td>
                       <td>{doc.nombre_archivo}</td>
-                      <td>{new Date(doc.fecha_creacion).toLocaleString()}</td>
+                      <td>{new Date(doc.fecha_subida).toLocaleString()}</td>
                       <td>
                         <button className="btn btn-success btn-sm me-2" onClick={() => handleDownload(doc.id_documento)}>Descargar</button>
                         <button className="btn btn-danger btn-sm" onClick={() => handleDelete(doc.id_documento)}>Eliminar</button>
