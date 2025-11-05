@@ -1,18 +1,17 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from datetime import datetime, timedelta
-import logging
+from common.database import db_manager
+from common.models import Notificacion, Usuario
 
 app = Flask(__name__)
 CORS(app)
 
-# Configuración de logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+@app.route("/", methods=["POST"])
+def crear_notificacion():
+    data = request.json
+    id_usuario = data.get("id_usuario")
+    tipo = data.get("tipo")
+    mensaje = data.get("mensaje")
 
 # Configuración de email desde variables de entorno
 SMTP_HOST = os.getenv("MAIL_SERVER", "smtp.gmail.com")
@@ -165,6 +164,7 @@ def send_notification():
         logger.error(f"Error al enviar notificación: {str(e)}")
         return jsonify({"error": "Error interno del servidor"}), 500
 
+    return jsonify(result), 201
 
 # ==================== NOTIFICACIONES AUTOMÁTICAS ====================
 
