@@ -23,7 +23,7 @@ services:
       - "--entrypoints.web.address=:80"
     
     ports:
-      - "80:80"        # Puerto web principal
+      - "8081:80"        # Puerto web principal
       - "8080:8080"    # Dashboard de Traefik
     
     volumes:
@@ -212,11 +212,11 @@ services:
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/2
-      - MAIL_SERVER=${MAIL_SERVER:-mailhog}
+      - MAIL_SERVER=${SMTP_SERVER:-mailhog}
       # Servidor SMTP para enviar emails
-      - MAIL_PORT=${MAIL_PORT:-1025}
-      - MAIL_USERNAME=${MAIL_USERNAME:-}
-      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_PORT=${SMTP_PORT:-1025}
+      - MAIL_USERNAME=${SMTP_USERNAME:-}
+      - MAIL_PASSWORD=${SMTP_PASSWORD:-}
     volumes:
       - ./backend/notificaciones/app:/app
       - ./backend/common:/app/common
@@ -315,8 +315,6 @@ volumes:
   documentos-uploads:   # PDFs y archivos subidos
   prometheus-data:      # Métricas de Prometheus
   grafana-data:         # Dashboards de Grafana
-
-
   frontend-node-modules: # node_modules para el frontend (evita perder módulos al montar el código)
 
   #------------------- SERVICIO IA (falta aquí)----------------------------------

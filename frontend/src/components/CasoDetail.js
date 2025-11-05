@@ -1,17 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import apiFetch from '../utils/api';
 
 function CasoDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [caso, setCaso] = useState(null);
   const [partes, setPartes] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    rit: '',
+    descripcion: '',
+    estado: 'ACTIVA',
+  });
 
   useEffect(() => {
     // Obtener detalles del caso
     apiFetch(`/api/casos/${id}`)
-      .then(data => setCaso(data))
+      .then(data => {
+        setCaso(data);
+        setFormData({
+          rit: data.rit,
+          descripcion: data.descripcion,
+          estado: data.estado,
+        });
+      })
       .catch(error => console.error('Error al obtener detalles del caso:', error));
 
     // Obtener partes del caso
@@ -25,6 +39,24 @@ function CasoDetail() {
       .catch(error => console.error('Error al obtener movimientos del caso:', error));
   }, [id]);
 
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleUpdateCaso = (e) => {
+    e.preventDefault();
+    apiFetch(`/api/casos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(formData),
+    })
+      .then(updatedCaso => {
+        setCaso(updatedCaso);
+        setIsEditing(false);
+      })
+      .catch(error => console.error('Error al actualizar el caso:', error));
+  };
+
   if (!caso) {
     return <div>Cargando...</div>;
   }
@@ -32,15 +64,45 @@ function CasoDetail() {
   return (
     <div>
       <h2>Detalle del Caso: {caso.rit}</h2>
-      <div className="card mb-4">
-        <div className="card-header">Información General</div>
-        <div className="card-body">
-          <p><strong>ID Causa:</strong> {caso.id_causa}</p>
-          <p><strong>Estado:</strong> <span className={`badge bg-${caso.estado === 'ACTIVA' ? 'success' : 'secondary'}`}>{caso.estado}</span></p>
-          <p><strong>Fecha de Inicio:</strong> {new Date(caso.fecha_inicio).toLocaleDateString()}</p>
-          <p><strong>Descripción:</strong> {caso.descripcion}</p>
+
+      {isEditing ? (
+        <div className="card mb-4">
+          <div className="card-header">Editando Caso</div>
+          <div className="card-body">
+            <form onSubmit={handleUpdateCaso}>
+              <div className="mb-3">
+                <label htmlFor="rit" className="form-label">RIT</label>
+                <input type="text" className="form-control" id="rit" name="rit" value={formData.rit} onChange={handleInputChange} required />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="descripcion" className="form-label">Descripción</label>
+                <textarea className="form-control" id="descripcion" name="descripcion" rows="3" value={formData.descripcion} onChange={handleInputChange}></textarea>
+              </div>
+              <div className="mb-3">
+                <label htmlFor="estado" className="form-label">Estado</label>
+                <select className="form-select" id="estado" name="estado" value={formData.estado} onChange={handleInputChange}>
+                  <option value="ACTIVA">Activa</option>
+                  <option value="ARCHIVADA">Archivada</option>
+                </select>
+              </div>
+              <button type="submit" className="btn btn-primary">Guardar Cambios</button>
+              <button type="button" className="btn btn-secondary ms-2" onClick={() => setIsEditing(false)}>Cancelar</button>
+            </form>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="card mb-4">
+          <div className="card-header">Información General</div>
+          <div className="card-body">
+            <p><strong>ID Causa:</strong> {caso.id_causa}</p>
+            <p><strong>Estado:</strong> <span className={`badge bg-${caso.estado === 'ACTIVA' ? 'success' : 'secondary'}`}>{caso.estado}</span></p>
+            <p><strong>Fecha de Inicio:</strong> {new Date(caso.fecha_inicio).toLocaleDateString()}</p>
+            <p><strong>Descripción:</strong> {caso.descripcion}</p>
+            <button className="btn btn-primary" onClick={() => setIsEditing(true)}>Editar</button>
+            <button className="btn btn-secondary ms-2" onClick={() => navigate('/casos')}>Volver</button>
+          </div>
+        </div>
+      )}
 
       <div className="card mb-4">
         <div className="card-header">Partes Involucradas</div>
