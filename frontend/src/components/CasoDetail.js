@@ -82,6 +82,7 @@ function CasoDetail() {
                 <label htmlFor="estado" className="form-label">Estado</label>
                 <select className="form-select" id="estado" name="estado" value={formData.estado} onChange={handleInputChange}>
                   <option value="ACTIVA">Activa</option>
+                  <option value="CONGELADA">Activa</option>
                   <option value="ARCHIVADA">Archivada</option>
                 </select>
               </div>
