@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import apiFetch from '../utils/api';
 
 function Documentos() {
@@ -13,7 +13,7 @@ function Documentos() {
       .catch(error => console.error('Error al obtener casos:', error));
   }, []);
 
-  const fetchDocuments = () => {
+  const fetchDocuments = useCallback(() => {
     if (selectedCaso) {
       console.log('Fetching documents for case:', selectedCaso);
       apiFetch(`/api/documentos/causa/${selectedCaso}/documentos`)
@@ -26,12 +26,12 @@ function Documentos() {
           setDocumentos([]);
         });
     }
-  }
+  }, [selectedCaso]);
 
   useEffect(() => {
     if(selectedCaso) fetchDocuments();
     else setDocumentos([]);
-  }, [selectedCaso]);
+  }, [selectedCaso, fetchDocuments]);
 
   const handleCasoChange = (e) => {
     setSelectedCaso(e.target.value);

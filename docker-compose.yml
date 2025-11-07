@@ -230,7 +230,7 @@ services:
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
     volumes:
-      - ./backend/reportes/app:/app
+      - ./backend/reportes:/app
       - ./backend/common:/app/common
       - reportes-temp:/tmp/reports
     labels:

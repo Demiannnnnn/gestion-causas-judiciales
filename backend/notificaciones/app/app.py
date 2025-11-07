@@ -2,6 +2,9 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from common.database import db_manager
 from common.models import Notificacion, Usuario
+from flask_socketio import SocketIO, emit
+import redis
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -65,6 +68,22 @@ def health_check():
 
 
 # ==================== ENVÍO DE NOTIFICACIONES ====================
+
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+@socketio.on('connect')
+def handle_connect():
+    print('Cliente conectado')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Cliente desconectado')
+
+def enviar_notificacion_push(user_id, mensaje):
+    socketio.emit('nueva_notificacion', {
+        'mensaje': mensaje,
+        'timestamp': datetime.now().isoformat()
+    }, room=f'user_{user_id}')
 
 
 def enviar_email(destinatario, asunto, mensaje, html=False):
@@ -166,8 +185,21 @@ def send_notification():
 
     return jsonify(result), 201
 
-# ==================== NOTIFICACIONES AUTOMÁTICAS ====================
+# ======================= Integracion con Redis =====================yy
 
+redis_client = redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/2'))
+
+@app.route("/queue", methods=["POST"])
+def queue_notification():
+    """Encola notificación para procesamiento asíncrono"""
+    data = request.get_json()
+    
+    # Guardar en cola de Redis
+    redis_client.lpush('notification_queue', json.dumps(data))
+    
+    return jsonify({"status": "queued"}), 202
+
+# ==================== NOTIFICACIONES AUTOMÁTICAS ====================
 
 @app.route("/alerta-vencimiento", methods=["POST"])
 def alerta_vencimiento():

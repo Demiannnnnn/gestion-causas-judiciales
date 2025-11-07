@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const API_URL = '/api';
 
@@ -9,13 +9,7 @@ function Notificaciones() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Cargar notificaciones al montar el componente
-  useEffect(() => {
-    fetchNotificaciones();
-    fetchStats();
-  }, [filtroTipo, filtroLeido]);
-
-  const fetchNotificaciones = () => {
+  const fetchNotificaciones = useCallback(() => {
     setLoading(true);
     let url = `${API_URL}/notificaciones?`;
     
@@ -32,14 +26,21 @@ function Notificaciones() {
         console.error('Error al obtener notificaciones:', error);
         setLoading(false);
       });
-  };
+  }, [filtroTipo, filtroLeido]);
 
-  const fetchStats = () => {
+  const fetchStats = useCallback(() => {
     fetch(`${API_URL}/notificaciones/stats`)
       .then(response => response.json())
       .then(data => setStats(data))
       .catch(error => console.error('Error al obtener estadísticas:', error));
-  };
+  }, []);
+
+  // Cargar notificaciones al montar el componente
+  useEffect(() => {
+    fetchNotificaciones();
+    fetchStats();
+  }, [fetchNotificaciones, fetchStats]);
+
 
   const marcarComoLeido = (id) => {
     fetch(`${API_URL}/notificaciones/${id}/marcar-leido`, {
