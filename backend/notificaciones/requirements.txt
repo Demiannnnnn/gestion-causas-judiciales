@@ -1,5 +1,6 @@
 # Framework
 Flask==3.0.0
+gunicorn==21.2.0
 
 # CORS (Cross-Origin Resource Sharing)
 Flask-CORS==4.0.0
