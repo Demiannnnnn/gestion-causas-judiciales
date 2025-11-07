@@ -230,14 +230,26 @@ services:
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
     volumes:
-      - ./backend/reportes:/app
+      - ./backend/reportes/app:/app
       - ./backend/common:/app/common
+      - reportes-temp:/tmp/reports
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.reportes.rule=PathPrefix(`/api/reportes`)"
       - "traefik.http.middlewares.reportes-strip.stripprefix.prefixes=/api/reportes"
       - "traefik.http.routers.reportes.middlewares=reportes-strip"
-      - "traefik.http.services.reportes.loadbalancer.server.port=8004"
+      - "traefik.http.services.reportes.loadbalancer.server.port=8005"
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+# Y en la sección de volumes al final del archivo, agregar:
+volumes:
+  # ... otros volúmenes existentes ...
+  reportes-temp:  # Volumen para archivos temporales de reportes
 
   frontend:
     build:
