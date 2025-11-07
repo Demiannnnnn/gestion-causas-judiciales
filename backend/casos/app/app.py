@@ -62,6 +62,29 @@ def create_caso():
         })
         
         return jsonify({'id_causa': nuevo_caso.id_causa}), 201
+    
+# Nueva función para enviar notificación al servicio 'notificaciones'
+def notify_status_change(caso):
+    # Usamos el nombre del servicio 'notificaciones' como host (gracias a Docker network)
+    NOTIF_URL = "http://notificaciones:8003/alerta-movimiento"
+    
+    # Se asume un destinatario de prueba, en un sistema real se consultaría a la BD de usuarios
+    destinatarios_prueba = ["abogado@judicial.cl"] 
+    
+    payload = {
+        "caso_rit": caso.rit,
+        "destinatarios": destinatarios_prueba,
+        "movimiento": f"El estado del caso ha cambiado a: {caso.estado}"
+    }
+    
+    try:
+        # Enviar la solicitud POST
+        response = requests.post(NOTIF_URL, json=payload, timeout=5)
+        response.raise_for_status() # Lanza excepción para errores 4xx/5xx
+        print(f"Notificación de cambio de estado enviada: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        # Esto evita que una falla en 'notificaciones' detenga el servicio 'casos'
+        print(f"ERROR al enviar notificación al servicio 'notificaciones': {e}")
 
 # Endpoint para actualizar un caso
 @app.route('/<int:id>', methods=['PUT'])
@@ -72,22 +95,28 @@ def update_caso(id):
             return jsonify({'error': 'Caso no encontrado'}), 404
         
         data = request.json
+        estado_anterior = caso.estado 
+        
+        # Actualizar campos
         caso.rit = data.get('rit', caso.rit)
         caso.tribunal_id = data.get('tribunal_id', caso.tribunal_id)
         caso.fecha_inicio = data.get('fecha_inicio', caso.fecha_inicio)
-        caso.estado = data.get('estado', caso.estado)
+        nuevo_estado = data.get('estado', caso.estado)
         caso.descripcion = data.get('descripcion', caso.descripcion)
+
+        # Lógica de notificación
+        if nuevo_estado != estado_anterior:
+            # Actualizar el estado antes de notificar
+            caso.estado = nuevo_estado
+            session.add(caso) 
+            session.flush() # Guardar el cambio inmediatamente
+            
+            # Enviar notificación de forma no bloqueante (dentro de lo posible en un microservicio síncrono)
+            notify_status_change(caso)
+        else:
+            caso.estado = nuevo_estado
         
-        # Enviar notificación
-        send_notification({
-            "tipo": "movimiento",
-            "caso_rit": caso.rit,
-            "destinatario": "admin@judicial.cl", # Asignar a un usuario específico o obtenerlo de la sesión
-            "asunto": f"Caso Actualizado: {caso.rit}",
-            "mensaje": f"Se ha actualizado el caso con RIT {caso.rit}."
-        })
-        
-        return jsonify({'mensaje': 'Caso actualizado'})
+        return jsonify(caso.to_json())
 
 def send_notification(data):
     try:
