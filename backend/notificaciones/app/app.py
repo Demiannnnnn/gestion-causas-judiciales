@@ -123,7 +123,7 @@ def send_notification():
 
             nueva_notificacion = Notificacion(
                 id_usuario=id_usuario,
-                tipo='ALERTA',
+                tipo=data["tipo"],
                 caso_rit=data.get("caso_rit", "N/A"),
                 destinatario=data["destinatario"],
                 asunto=data["asunto"],
