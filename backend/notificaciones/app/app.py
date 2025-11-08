@@ -2,9 +2,6 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from common.database import db_manager
 from common.models import Notificacion, Usuario
-from flask_socketio import SocketIO, emit
-import redis
-import json
 
 app = Flask(__name__)
 CORS(app)
@@ -69,36 +66,25 @@ def health_check():
 
 # ==================== ENVÍO DE NOTIFICACIONES ====================
 
-socketio = SocketIO(app, cors_allowed_origins="*")
-
-@socketio.on('connect')
-def handle_connect():
-    print('Cliente conectado')
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print('Cliente desconectado')
-
-def enviar_notificacion_push(user_id, mensaje):
-    socketio.emit('nueva_notificacion', {
-        'mensaje': mensaje,
-        'timestamp': datetime.now().isoformat()
-    }, room=f'user_{user_id}')
-
 
 def enviar_email(destinatario, asunto, mensaje, html=False):
     """
     Función auxiliar para enviar emails
-    ...
+
+    Args:
+        destinatario (str): Email del destinatario
+        asunto (str): Asunto del email
+        mensaje (str): Cuerpo del mensaje
+        html (bool): Si el mensaje es HTML
+
+    Returns:
+        bool: True si se envió correctamente, False en caso contrario
     """
     try:
-        # Determinar si estamos usando MailHog (no requiere credenciales ni TLS)
-        is_mailhog = SMTP_HOST == "mailhog" and SMTP_PORT == 1025
-
-        # Si NO es Mailhog y faltan credenciales, entramos en modo demo.
-        if not is_mailhog and (not SMTP_USER or not SMTP_PASSWORD):
-            logger.warning("SMTP no configurado y no es MailHog. Email no enviado (modo demo).")
-            return True
+        # Validar configuración
+        if not SMTP_USER or not SMTP_PASSWORD:
+            logger.warning("SMTP no configurado. Email no enviado (modo demo).")
+            return True  # En modo demo, retornar True para no bloquear el sistema
 
         # Crear mensaje
         msg = MIMEMultipart("alternative")
@@ -114,11 +100,8 @@ def enviar_email(destinatario, asunto, mensaje, html=False):
 
         # Conectar y enviar
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            if not is_mailhog:
-                # Solo usar TLS y autenticación si NO es MailHog
-                server.starttls()
-                server.login(SMTP_USER, SMTP_PASSWORD)
-            
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
 
         logger.info(f"Email enviado a {destinatario}: {asunto}")
@@ -127,6 +110,7 @@ def enviar_email(destinatario, asunto, mensaje, html=False):
     except Exception as e:
         logger.error(f"Error al enviar email: {str(e)}")
         return False
+
 
 @app.route("/send", methods=["POST"])
 def send_notification():
@@ -182,21 +166,8 @@ def send_notification():
 
     return jsonify(result), 201
 
-# ======================= Integracion con Redis =====================yy
-
-redis_client = redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/2'))
-
-@app.route("/queue", methods=["POST"])
-def queue_notification():
-    """Encola notificación para procesamiento asíncrono"""
-    data = request.get_json()
-    
-    # Guardar en cola de Redis
-    redis_client.lpush('notification_queue', json.dumps(data))
-    
-    return jsonify({"status": "queued"}), 202
-
 # ==================== NOTIFICACIONES AUTOMÁTICAS ====================
+
 
 @app.route("/alerta-vencimiento", methods=["POST"])
 def alerta_vencimiento():
