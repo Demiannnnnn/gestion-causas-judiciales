@@ -1,101 +1,103 @@
 #version docker-compose
 version: '3.8'
 
-
 services:
   #router
   gateway:
-   # usa una imagen pre-construida de Docker Hub  
     image: traefik:v2.10  
     container_name: gateway    
     command:
-      # Habilita dashboard de Traefik 
-      # insecure=true: sin autenticacion (solo para desarrollo) cambiar configuracion en futuro
       - "--api.insecure=true"
-
-      # busca servicios en Docker
       - "--providers.docker=true"
-      
-      #expone solo servicios que tengan label "traefik.enable=true"
       - "--providers.docker.exposedbydefault=false"
-      
-      # Todas las peticiones HTTP llegan aquí
       - "--entrypoints.web.address=:80"
-    
     ports:
-      - "8081:80"        # Puerto web principal
-      - "8080:8080"    # Dashboard de Traefik
-    
+      - "8081:80"
+      - "8080:8080"
     volumes:
-      # Permite que Traefik vea otros contenedores Docker
-      # :ro = read-only (solo lectura, más seguro)
       - /var/run/docker.sock:/var/run/docker.sock:ro
-
-    
     networks:
       - app-network
-    
     restart: unless-stopped
 
-  mysql:
+  db-master:
     build:
       context: ./db
-    container_name: mysql
-    
+    container_name: db-master
     environment:
-      # variables de entorno
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-
-      # Nombre de la BD (por defecto 'appdb')
       MYSQL_DATABASE: ${MYSQL_DATABASE:-appdb}
-
-      # Usuario (no root)
       MYSQL_USER: ${MYSQL_USER:-appuser}
-
-      # Contraseña del usuario
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
-    
+    command:
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-do-db=${MYSQL_DATABASE:-appdb}
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --ssl-ca=/etc/mysql/certs/ca.pem
+      - --ssl-cert=/etc/mysql/certs/server-cert.pem
+      - --ssl-key=/etc/mysql/certs/server-key.pem
     volumes:
-      #guarda los datos de MySQL en un volumen
-      - mysql-data:/var/lib/mysql
-
-      # Scripts SQL que se ejecutan al crear la BD
-      - ./db/mysql:/docker-entrypoint-initdb.d
+      - mysql-master-data:/var/lib/mysql
+      - ./db/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./db/certs:/etc/mysql/certs:ro
     ports:
       - "3307:3306"
-    
     networks:
       - app-network
-    
-    restart: unless-stopped
-    
+    restart: always
     healthcheck:
-      # verifica si MySQL está funcionando
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      
       interval: 10s    
-      timeout: 5s         # Si tarda más de 5s, considera que la db falla
-      retries: 5          # intenta 5 veces antes de marcar como unhealthy
-      start_period: 30s   # espera 30s antes de empezar a verificar
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  db-slave:
+    build:
+      context: ./db
+    container_name: db-slave
+    depends_on:
+      db-master:
+        condition: service_healthy
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_MASTER_HOST: db-master
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-appdb}
+      MYSQL_USER: ${MYSQL_USER:-appuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
+    command:
+      - --server-id=2
+      - --relay-log=mysql-relay-bin
+      - --log-slave-updates=ON
+      - --read-only=ON
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --ssl-ca=/etc/mysql/certs/ca.pem
+      - --ssl-cert=/etc/mysql/certs/client-cert.pem
+      - --ssl-key=/etc/mysql/certs/client-key.pem
+    volumes:
+      - mysql-slave-data:/var/lib/mysql
+      - ./db/certs:/etc/mysql/certs:ro
+      - ./db/init-slave.sh:/docker-entrypoint-initdb.d/init-slave.sh:ro
+    ports:
+      - "3308:3306"
+    networks:
+      - app-network
+    restart: always
 
   redis:
     image: redis:7-alpine    
     container_name: redis
-
-    # Persistencia de datos
     command: redis-server --appendonly yes
-    
     volumes:
       - redis-data:/data
-    
     ports:
       - "6379:6379"
-    
     networks:
       - app-network
-    
     restart: unless-stopped
-    
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -105,47 +107,29 @@ services:
   autenticacion:
     build:
       context: ./backend/autenticacion
-          
     container_name: autenticacion
-    
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development 
-
-      # URL de conexión a MySQL     
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
-      
-        # Base de datos 0 de Redis
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/0
-      
-      # Clave para firmar tokens JWT
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      
-    
     volumes:
       - ./backend/autenticacion/app:/app
       - ./backend/common:/app/common
-    
     labels:
-      #codigo para la conexion con traefic (gateway)
       - "traefik.enable=true"
       - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`)"
       - "traefik.http.middlewares.auth-strip.stripprefix.prefixes=/api/auth"
       - "traefik.http.routers.auth.middlewares=auth-strip"      
       - "traefik.http.services.auth.loadbalancer.server.port=8000"
-    
     networks:
       - app-network
-    
     restart: unless-stopped
-    
     depends_on:
-      mysql:
-        # no inicia hasta que MySQL esté "healthy"
+      db-master:
         condition: service_healthy
-      
       redis:
-        # Espera que Redis esté iniciado 
         condition: service_started
 
   casos:
@@ -155,8 +139,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
-      #  Base de datos 1 de Redis 
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/1
     volumes:
       - ./backend/casos/app:/app
@@ -171,7 +154,7 @@ services:
       - app-network
     restart: unless-stopped
     depends_on:
-      mysql:
+      db-master:
         condition: service_healthy
 
   documentos:
@@ -181,14 +164,12 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - UPLOAD_FOLDER=/app/uploads
-      # Carpeta donde se guardan los PDFs subidos
     volumes:
       - ./backend/documentos/app:/app
       - ./backend/common:/app/common
       - documentos-uploads:/app/uploads
-
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.docs.rule=PathPrefix(`/api/documentos`)"
@@ -199,7 +180,7 @@ services:
       - app-network
     restart: unless-stopped
     depends_on:
-      mysql:
+      db-master:
         condition: service_healthy
 
   notificaciones:
@@ -209,10 +190,9 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/2
       - MAIL_SERVER=${SMTP_SERVER:-mailhog}
-      # Servidor SMTP para enviar emails
       - MAIL_PORT=${SMTP_PORT:-1025}
       - MAIL_USERNAME=${SMTP_USERNAME:-}
       - MAIL_PASSWORD=${SMTP_PASSWORD:-}
@@ -229,7 +209,7 @@ services:
       - app-network
     restart: unless-stopped
     depends_on:
-      mysql:
+      db-master:
         condition: service_healthy
 
   frontend:
@@ -239,20 +219,15 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`localhost`)"
-      # Regla: CUALQUIER petición a localhost va al frontend
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
     volumes:
       - ./frontend:/app
-      # usar un volumen nombrado para node_modules para no sobrescribir
-      # los módulos instalados en la imagen cuando montamos ./frontend
       - frontend-node-modules:/app/node_modules
     environment:
       - CHOKIDAR_USEPOLLING=true
-      # Forzar que react-scripts escuche en todas las interfaces
       - HOST=0.0.0.0
     stdin_open: true
     tty: true
-      # Nginx sirve los archivos estáticos en puerto 80
     networks:
       - app-network
     restart: unless-stopped
@@ -261,9 +236,7 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     volumes:
-      # Montar un archivo de configuración concreto (evita problemas si hay directorios con el mismo nombre)
       - ./monitoring/prometheus/prometheus_main.yml:/etc/prometheus/prometheus.yml
-      # Datos de configuración y métricas
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
@@ -274,13 +247,11 @@ services:
       - app-network
     restart: unless-stopped
 
-  # ========== MONITOREO: GRAFANA ==========
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-      # ${VAR:-default}: Si no existe VAR, usa "default"
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
     volumes:
       - grafana-data:/var/lib/grafana
@@ -296,24 +267,20 @@ services:
     image: mailhog/mailhog
     container_name: mailhog
     ports:
-      - "1025:1025" # Puerto SMTP
-      - "8025:8025" # Interfaz Web
+      - "1025:1025"
+      - "8025:8025"
     networks:
       - app-network
 
 networks:
-# Bridge: Red virtual privada para los contenedores
   app-network:
     driver: bridge
-    
 
 volumes:
-  # Volúmenes persistentes (datos que NO se pierden al destruir contenedores)
-  mysql-data:           # Datos de MySQL
-  redis-data:           # Datos de Redis
-  documentos-uploads:   # PDFs y archivos subidos
-  prometheus-data:      # Métricas de Prometheus
-  grafana-data:         # Dashboards de Grafana
-  frontend-node-modules: # node_modules para el frontend (evita perder módulos al montar el código)
-
-  #------------------- SERVICIO IA (falta aquí)----------------------------------
+  mysql-master-data:
+  mysql-slave-data:
+  redis-data:
+  documentos-uploads:
+  prometheus-data:
+  grafana-data:
+  frontend-node-modules:

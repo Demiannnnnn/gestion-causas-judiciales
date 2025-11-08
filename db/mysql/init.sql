@@ -4,12 +4,9 @@
 --   Autor: (Camilo)
 --   Fecha: 2025-11-01
 -- ============================================================
-
-CREATE DATABASE IF NOT EXISTS gestion_causas
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE gestion_causas;
+-- NOTA: El script se ejecuta dentro de la base de datos definida
+-- por la variable MYSQL_DATABASE en docker-compose.yml.
+-- No se necesita CREATE DATABASE ni USE.
 
 -- ============================================================
 --  TABLA: TRIBUNAL
@@ -188,12 +185,11 @@ CREATE FULLTEXT INDEX ft_parte_nombre ON Parte(nombre);
 -- ============================================================
 --  USUARIO: admin_app
 --  Rol: Administrador general del sistema
---  Permisos: Total sobre la base gestion_causas
+--  Permisos: Total sobre la base de datos
 -- ============================================================
 
 CREATE USER 'admin_app'@'%' IDENTIFIED BY 'AdminApp#2025!';
-GRANT ALL PRIVILEGES ON gestion_causas.* TO 'admin_app'@'%'
-    WITH GRANT OPTION;
+GRANT ALL PRIVILEGES ON *.* TO 'admin_app'@'%' WITH GRANT OPTION;
 
 -- ============================================================
 --  USUARIO: abogado_app
@@ -203,15 +199,15 @@ GRANT ALL PRIVILEGES ON gestion_causas.* TO 'admin_app'@'%'
 -- ============================================================
 
 CREATE USER 'abogado_app'@'%' IDENTIFIED BY 'Abogado#2025!';
-GRANT SELECT, INSERT, UPDATE ON gestion_causas.Causa TO 'abogado_app'@'%';
-GRANT SELECT, INSERT, UPDATE ON gestion_causas.Parte TO 'abogado_app'@'%';
-GRANT SELECT, INSERT, UPDATE ON gestion_causas.CausaParte TO 'abogado_app'@'%';
-GRANT SELECT, INSERT, UPDATE ON gestion_causas.Documento TO 'abogado_app'@'%';
-GRANT SELECT, INSERT ON gestion_causas.Movimiento TO 'abogado_app'@'%';
-GRANT SELECT ON gestion_causas.Tribunal TO 'abogado_app'@'%';
-GRANT SELECT ON gestion_causas.Usuario TO 'abogado_app'@'%';
-GRANT SELECT, INSERT ON gestion_causas.Notificacion TO 'abogado_app'@'%';
-GRANT SELECT, INSERT ON gestion_causas.LogAccion TO 'abogado_app'@'%';
+GRANT SELECT, INSERT, UPDATE ON Causa TO 'abogado_app'@'%';
+GRANT SELECT, INSERT, UPDATE ON Parte TO 'abogado_app'@'%';
+GRANT SELECT, INSERT, UPDATE ON CausaParte TO 'abogado_app'@'%';
+GRANT SELECT, INSERT, UPDATE ON Documento TO 'abogado_app'@'%';
+GRANT SELECT, INSERT ON Movimiento TO 'abogado_app'@'%';
+GRANT SELECT ON Tribunal TO 'abogado_app'@'%';
+GRANT SELECT ON Usuario TO 'abogado_app'@'%';
+GRANT SELECT, INSERT ON Notificacion TO 'abogado_app'@'%';
+GRANT SELECT, INSERT ON LogAccion TO 'abogado_app'@'%';
 
 -- ============================================================
 --  USUARIO: asistente_app
@@ -221,13 +217,13 @@ GRANT SELECT, INSERT ON gestion_causas.LogAccion TO 'abogado_app'@'%';
 -- ============================================================
 
 CREATE USER 'asistente_app'@'%' IDENTIFIED BY 'Asistente#2025!';
-GRANT SELECT ON gestion_causas.Causa TO 'asistente_app'@'%';
-GRANT SELECT ON gestion_causas.Tribunal TO 'asistente_app'@'%';
-GRANT SELECT ON gestion_causas.Parte TO 'asistente_app'@'%';
-GRANT INSERT, SELECT ON gestion_causas.Movimiento TO 'asistente_app'@'%';
-GRANT INSERT, SELECT ON gestion_causas.Documento TO 'asistente_app'@'%';
-GRANT INSERT, SELECT ON gestion_causas.Notificacion TO 'asistente_app'@'%';
-GRANT INSERT ON gestion_causas.LogAccion TO 'asistente_app'@'%';
+GRANT SELECT ON Causa TO 'asistente_app'@'%';
+GRANT SELECT ON Tribunal TO 'asistente_app'@'%';
+GRANT SELECT ON Parte TO 'asistente_app'@'%';
+GRANT INSERT, SELECT ON Movimiento TO 'asistente_app'@'%';
+GRANT INSERT, SELECT ON Documento TO 'asistente_app'@'%';
+GRANT INSERT, SELECT ON Notificacion TO 'asistente_app'@'%';
+GRANT INSERT ON LogAccion TO 'asistente_app'@'%';
 
 -- ============================================================
 --  USUARIO: sistemas_app
@@ -237,8 +233,8 @@ GRANT INSERT ON gestion_causas.LogAccion TO 'asistente_app'@'%';
 -- ============================================================
 
 CREATE USER 'sistemas_app'@'localhost' IDENTIFIED BY 'Sistemas#2025!';
-GRANT SELECT ON gestion_causas.* TO 'sistemas_app'@'localhost';
-GRANT INSERT, UPDATE ON gestion_causas.LogAccion TO 'sistemas_app'@'localhost';
+GRANT SELECT ON *.* TO 'sistemas_app'@'localhost';
+GRANT INSERT, UPDATE ON LogAccion TO 'sistemas_app'@'localhost';
 
 -- ============================================================
 --  USUARIO: readonly_app
@@ -247,7 +243,14 @@ GRANT INSERT, UPDATE ON gestion_causas.LogAccion TO 'sistemas_app'@'localhost';
 -- ============================================================
 
 CREATE USER 'readonly_app'@'%' IDENTIFIED BY 'ReadOnly#2025!';
-GRANT SELECT ON gestion_causas.* TO 'readonly_app'@'%';
+GRANT SELECT ON *.* TO 'readonly_app'@'%';
+
+-- ============================================================
+--  USUARIO PARA REPLICACIÓN
+-- ============================================================
+-- Contraseña simple para el ejemplo. En producción, usar vault o secrets.
+CREATE USER 'replicator'@'%' IDENTIFIED BY 'repl_password' REQUIRE SSL;
+GRANT REPLICATION_SLAVE ON *.* TO 'replicator'@'%';
 
 -- ============================================================
 --  TRIGGERS PARA AUDITORÍA EN LOGACCION
@@ -379,4 +382,3 @@ FLUSH PRIVILEGES;
 -- ============================================================
 INSERT INTO `Usuario` (`nombre`, `correo`, `password_hash`, `rol`, `activo`) VALUES
 ('Admin Principal', 'admin@judicial.cl', '$2b$12$PEm.9URVdnDqQELR7Zh0x.kH.vaK96CSW6KvfddCE3pNQYcIJasHW', 'ADMINISTRADOR', 1);
-

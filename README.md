@@ -931,3 +931,66 @@ Para preguntas sobre el proyecto:
 docker-compose build
 docker-compose up
 escribir en el navegador https://locahost:8081/
+
+---
+
+## Inicialización de la Base de Datos con Replicación Segura
+
+El sistema está configurado para levantar un cluster de base de datos MySQL con replicación maestro-esclavo (source-replica) segura (vía SSL) y de forma totalmente automatizada.
+
+Sigue estos pasos para la inicialización:
+
+### 1. Configurar Variables de Entorno
+
+Copia el archivo de ejemplo `.env.example` a un nuevo archivo llamado `.env`.
+
+```bash
+cp .env.example .env
+```
+
+Abre el archivo `.env` y ajusta las contraseñas y otros valores según sea necesario.
+
+### 2. Generar Certificados SSL
+
+Para la comunicación segura entre el maestro y el esclavo de la base de datos, se requieren certificados SSL. Se proporciona un script para generarlos automáticamente.
+
+Primero, dale permisos de ejecución al script:
+
+```bash
+chmod +x db/generate-certs.sh
+```
+
+Luego, ejecútalo:
+
+```bash
+./db/generate-certs.sh
+```
+
+Esto creará todos los archivos necesarios en el directorio `db/certs`.
+
+### 3. Levantar los Servicios
+
+Con los certificados y las variables de entorno listas, puedes levantar todo el stack de servicios.
+
+> **Nota**: Si has tenido ejecuciones anteriores, es recomendable limpiar los volúmenes de Docker para asegurar una inicialización limpia con la nueva configuración de SSL. Para ello, ejecuta `docker compose down -v` antes de continuar.
+
+```bash
+docker compose up -d --build
+```
+
+### 4. Verificar la Replicación
+
+Después de que los contenedores se hayan iniciado (dale un minuto), puedes verificar que la replicación está funcionando correctamente. Ejecuta el siguiente comando:
+
+```bash
+docker compose exec db-slave mysql -u root -p${MYSQL_ROOT_PASSWORD:-root} -e "SHOW REPLICA STATUS\G"
+```
+
+En la salida, busca las siguientes líneas. Ambas deben indicar `Yes`:
+
+```
+Replica_IO_Running: Yes
+Replica_SQL_Running: Yes
+```
+
+Si es así, la base de datos está operando en modo de alta disponibilidad con replicación segura.
