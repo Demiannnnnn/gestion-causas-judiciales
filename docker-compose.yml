@@ -151,11 +151,11 @@ services:
   casos:
     build:
       context: ./backend/casos
-    container_name: casos
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      - SECRET_KEY=${CASOS_SECRET_KEY}
       #  Base de datos 1 de Redis 
       - REDIS_URL=redis://redis:6379/1
     volumes:
@@ -173,6 +173,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    deploy:
+      replicas: 2
 
   documentos:
     build:
@@ -253,7 +255,6 @@ services:
   frontend:
     build:
       context: ./frontend
-    container_name: frontend
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`localhost`)"
@@ -274,6 +275,9 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+
+    deploy:
+      replicas: 2
 
   prometheus:
     image: prom/prometheus:latest

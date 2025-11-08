@@ -3,11 +3,13 @@ from flask_cors import CORS
 import datetime
 import requests
 from sqlalchemy.exc import IntegrityError
+import os
 
 from common.database import db_manager
 from common.models import Causa, Tribunal
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ThatWasEpic')
 CORS(app)  # Habilitar CORS para todas las rutas
 
 # Endpoint para obtener todos los casos
