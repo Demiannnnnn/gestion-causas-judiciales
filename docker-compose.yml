@@ -222,6 +222,12 @@ services:
       - ./backend/common:/app/common
     networks:
       - app-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.notificaciones.rule=PathPrefix(`/api/notificaciones`)"
+      - "traefik.http.middlewares.notificaciones-strip.stripprefix.prefixes=/api/notificaciones"
+      - "traefik.http.routers.notificaciones.middlewares=notificaciones-strip"
+      - "traefik.http.services.notificaciones.loadbalancer.server.port=8003"
     depends_on:
       mysql:
         condition: service_healthy

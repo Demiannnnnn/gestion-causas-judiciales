@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-const API_URL = '/api';
+const API_URL = 'http://localhost:8081/api';
 
 function Notificaciones() {
   const [notificaciones, setNotificaciones] = useState([]);
