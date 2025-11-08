@@ -134,11 +134,15 @@ CREATE TABLE Movimiento (
 
 CREATE TABLE Notificacion (
     id_notificacion INT AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT NOT NULL,
+    id_usuario INT,
     tipo ENUM('ALERTA', 'VENCIMIENTO', 'MOVIMIENTO', 'REPORTE') NOT NULL,
+    destinatario VARCHAR(100) NOT NULL,
+    asunto VARCHAR(255) NOT NULL,
     mensaje TEXT NOT NULL,
+    caso_rit VARCHAR(50),
     fecha_envio DATETIME DEFAULT CURRENT_TIMESTAMP,
-    estado ENUM('PENDIENTE', 'ENVIADA', 'LEÍDA') DEFAULT 'PENDIENTE',
+    estado ENUM('PENDIENTE', 'ENVIADA', 'LEÍDA', 'ERROR') DEFAULT 'PENDIENTE',
+    leido BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
         ON DELETE CASCADE
         ON UPDATE CASCADE,

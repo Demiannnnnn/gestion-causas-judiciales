@@ -13,8 +13,9 @@ PyMySQL==1.1.0
 # Variables de entorno
 python-dotenv==1.0.0
 
-# Cliente Redis (para caché y colas)
+sqlalchemy
 redis==5.0.1
+cryptography
 
 # Manejo de fechas
 python-dateutil==2.8.2

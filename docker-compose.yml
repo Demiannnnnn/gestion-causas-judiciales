@@ -220,6 +220,11 @@ services:
     volumes:
       - ./backend/notificaciones/app:/app
       - ./backend/common:/app/common
+    networks:
+      - app-network
+    depends_on:
+      mysql:
+        condition: service_healthy
 
   reportes:
     build:
@@ -232,19 +237,12 @@ services:
     volumes:
       - ./backend/reportes:/app
       - ./backend/common:/app/common
-      - reportes-temp:/tmp/reports
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.reportes.rule=PathPrefix(`/api/reportes`)"
       - "traefik.http.middlewares.reportes-strip.stripprefix.prefixes=/api/reportes"
       - "traefik.http.routers.reportes.middlewares=reportes-strip"
-      - "traefik.http.services.reportes.loadbalancer.server.port=8005"
-    networks:
-      - app-network
-    restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
+      - "traefik.http.services.reportes.loadbalancer.server.port=8004"
 
   frontend:
     build:
@@ -329,6 +327,5 @@ volumes:
   prometheus-data:      # Métricas de Prometheus
   grafana-data:         # Dashboards de Grafana
   frontend-node-modules: # node_modules para el frontend (evita perder módulos al montar el código)
-  reportes-temp:        # Volumen para archivos temporales de reportes
 
   #------------------- SERVICIO IA (falta aquí)----------------------------------

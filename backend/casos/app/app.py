@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import datetime
 import requests
+from sqlalchemy.exc import IntegrityError
 
 from common.database import db_manager
 from common.models import Causa, Tribunal
@@ -49,19 +50,23 @@ def create_caso():
         descripcion=data.get('descripcion')  # Nuevo campo de descripción
     )
     with db_manager.get_session() as session:
-        session.add(nuevo_caso)
-        session.flush() # Para obtener el ID antes del commit
-        
-        # Enviar notificación
-        send_notification({
-            "tipo": "movimiento",
-            "caso_rit": nuevo_caso.rit,
-            "destinatario": "admin@judicial.cl", # Asignar a un usuario específico o obtenerlo de la sesión
-            "asunto": f"Nuevo Caso Creado: {nuevo_caso.rit}",
-            "mensaje": f"Se ha creado un nuevo caso con RIT {nuevo_caso.rit}."
-        })
-        
-        return jsonify({'id_causa': nuevo_caso.id_causa}), 201
+        try:
+            session.add(nuevo_caso)
+            session.flush() # Para obtener el ID antes del commit
+            
+            # Enviar notificación
+            send_notification({
+                "tipo": "movimiento",
+                "caso_rit": nuevo_caso.rit,
+                "destinatario": "admin@judicial.cl", # Asignar a un usuario específico o obtenerlo de la sesión
+                "asunto": f"Nuevo Caso Creado: {nuevo_caso.rit}",
+                "mensaje": f"Se ha creado un nuevo caso con RIT {nuevo_caso.rit}."
+            })
+            
+            return jsonify({'id_causa': nuevo_caso.id_causa}), 201
+        except IntegrityError:
+            session.rollback()
+            return jsonify({'error': 'Ya existe un caso con el mismo RIT'}), 409
 
 # Endpoint para actualizar un caso
 @app.route('/<int:id>', methods=['PUT'])
@@ -91,7 +96,7 @@ def update_caso(id):
 
 def send_notification(data):
     try:
-        requests.post("http://notificaciones:8003/notificaciones/send", json=data)
+        requests.post("http://notificaciones:8003/send", json=data)
     except Exception as e:
         print(f"Error sending notification: {e}")
 

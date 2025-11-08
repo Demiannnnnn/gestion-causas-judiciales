@@ -122,13 +122,31 @@ class Movimiento(Base):
 class Notificacion(Base):
     __tablename__ = 'Notificacion'
     id_notificacion = Column(Integer, primary_key=True)
-    id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'), nullable=False)
+    id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'), nullable=True)
     tipo = Column(Enum('ALERTA', 'VENCIMIENTO', 'MOVIMIENTO', 'REPORTE', name='tipo_notificacion'), nullable=False)
+    destinatario = Column(String(100), nullable=False)
+    asunto = Column(String(255), nullable=False)
     mensaje = Column(Text, nullable=False)
+    caso_rit = Column(String(50), nullable=True)
     fecha_envio = Column(DateTime, server_default=func.now())
-    estado = Column(Enum('PENDIENTE', 'ENVIADA', 'LEÍDA', name='estado_notificacion'), default='PENDIENTE')
+    estado = Column(Enum('PENDIENTE', 'ENVIADA', 'LEÍDA', 'ERROR', name='estado_notificacion'), default='PENDIENTE')
+    leido = Column(Boolean, default=False)
     
     usuario = relationship("Usuario", back_populates="notificaciones")
+
+    def to_json(self):
+        return {
+            "id": self.id_notificacion,
+            "id_usuario": self.id_usuario,
+            "tipo": self.tipo,
+            "destinatario": self.destinatario,
+            "asunto": self.asunto,
+            "mensaje": self.mensaje,
+            "caso_rit": self.caso_rit,
+            "fecha_envio": self.fecha_envio.isoformat() if self.fecha_envio else None,
+            "estado": self.estado,
+            "leido": self.leido,
+        }
 
 class LogAccion(Base):
     __tablename__ = 'LogAccion'

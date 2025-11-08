@@ -2,286 +2,340 @@ import React, { useState, useEffect } from 'react';
 import apiFetch from '../utils/api';
 
 function Reportes() {
+  const [tribunales, setTribunales] = useState([]);
+  const [casos, setCasos] = useState([]);
   const [estadisticas, setEstadisticas] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  
+  // Filtros para reportes
+  const [filtroTribunal, setFiltroTribunal] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [diasVencimiento, setDiasVencimiento] = useState(30);
+  const [casoSeleccionado, setCasoSeleccionado] = useState('');
 
   useEffect(() => {
-    // Cargar estadísticas al montar el componente
-    cargarEstadisticas();
+    cargarDatos();
   }, []);
 
-  const cargarEstadisticas = async () => {
+  const cargarDatos = async () => {
     try {
-      setLoading(true);
-      const data = await apiFetch('/api/reportes/estadisticas');
-      setEstadisticas(data);
+      // Cargar tribunales
+      const tribunalesData = await apiFetch('/api/casos/tribunales');
+      setTribunales(tribunalesData);
+      
+      // Cargar casos
+      const casosData = await apiFetch('/api/casos');
+      setCasos(casosData);
+      
+      // Cargar estadísticas
+      const statsData = await apiFetch('/api/reportes/estadisticas');
+      setEstadisticas(statsData);
     } catch (error) {
-      console.error('Error al cargar estadísticas:', error);
+      console.error('Error al cargar datos:', error);
+    }
+  };
+
+  const descargarReporteCasos = async () => {
+    setLoading(true);
+    try {
+      let url = '/api/reportes/casos/csv?';
+      if (filtroTribunal) url += `tribunal_id=${filtroTribunal}&`;
+      if (filtroEstado) url += `estado=${filtroEstado}`;
+      
+      // Descargar usando fetch directo para manejar archivos
+      const token = localStorage.getItem('token');
+      const response = await fetch(url, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      
+      if (!response.ok) throw new Error('Error al descargar reporte');
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `reporte_casos_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      alert('Reporte descargado exitosamente');
+    } catch (error) {
+      console.error('Error al descargar reporte:', error);
+      alert('Error al generar el reporte');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownloadReporte = (tipo) => {
-    // Descargar el reporte
-    const token = localStorage.getItem('token');
-    const url = `/api/reportes/${tipo}`;
-    
-    // Crear un elemento 'a' temporal para descargar
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', '');
-    
-    // Si hay token, agregarlo como query param
-    if (token) {
-      link.href += `?token=${token}`;
+  const descargarReporteVencimientos = async () => {
+    setLoading(true);
+    try {
+      const url = `/api/reportes/vencimientos/csv?dias=${diasVencimiento}`;
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch(url, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      
+      if (!response.ok) throw new Error('Error al descargar reporte');
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `reporte_vencimientos_${diasVencimiento}dias.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      alert('Reporte de vencimientos descargado exitosamente');
+    } catch (error) {
+      console.error('Error al descargar reporte:', error);
+      alert('Error al generar el reporte');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const descargarPDFCaso = async () => {
+    if (!casoSeleccionado) {
+      alert('Por favor seleccione un caso');
+      return;
     }
     
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    setLoading(true);
+    try {
+      const url = `/api/reportes/caso/${casoSeleccionado}/pdf`;
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch(url, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      
+      if (!response.ok) throw new Error('Error al descargar PDF');
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `caso_${casoSeleccionado}_completo.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      alert('PDF descargado exitosamente');
+    } catch (error) {
+      console.error('Error al descargar PDF:', error);
+      alert('Error al generar el PDF');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div>
       <h2>Generación de Reportes</h2>
-      
+      <p className="text-muted">
+        Seleccione el tipo de reporte que desea generar. Los reportes se descargarán automáticamente.
+      </p>
+
       {/* Estadísticas Generales */}
-      {loading ? (
-        <div className="text-center my-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Cargando...</span>
-          </div>
-        </div>
-      ) : estadisticas && (
-        <div className="row mb-4">
-          <div className="col-md-3">
-            <div className="card text-center border-primary">
-              <div className="card-body">
-                <h1 className="display-4 text-primary">{estadisticas.totales.casos}</h1>
-                <p className="text-muted mb-0">Total de Casos</p>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="card text-center border-success">
-              <div className="card-body">
-                <h1 className="display-4 text-success">{estadisticas.totales.documentos}</h1>
-                <p className="text-muted mb-0">Documentos</p>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="card text-center border-info">
-              <div className="card-body">
-                <h1 className="display-4 text-info">{estadisticas.totales.movimientos}</h1>
-                <p className="text-muted mb-0">Movimientos</p>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="card text-center border-warning">
-              <div className="card-body">
-                <h1 className="display-4 text-warning">{estadisticas.casos_por_estado.length}</h1>
-                <p className="text-muted mb-0">Estados Activos</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Distribución por Estado */}
-      {estadisticas && (
-        <div className="row mb-4">
-          <div className="col-md-6">
-            <div className="card">
-              <div className="card-header bg-primary text-white">
-                <h5 className="mb-0">📊 Casos por Estado</h5>
-              </div>
-              <div className="card-body">
-                <table className="table table-hover">
-                  <thead>
-                    <tr>
-                      <th>Estado</th>
-                      <th className="text-end">Cantidad</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {estadisticas.casos_por_estado.map((item, index) => (
-                      <tr key={index}>
-                        <td>
-                          <span className={`badge bg-${
-                            item.estado === 'ACTIVA' ? 'success' : 
-                            item.estado === 'CONGELADA' ? 'warning' : 'secondary'
-                          }`}>
-                            {item.estado}
-                          </span>
-                        </td>
-                        <td className="text-end">
-                          <strong>{item.cantidad}</strong>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-6">
-            <div className="card">
-              <div className="card-header bg-success text-white">
-                <h5 className="mb-0">📄 Documentos por Tipo</h5>
-              </div>
-              <div className="card-body">
-                <table className="table table-hover">
-                  <thead>
-                    <tr>
-                      <th>Tipo</th>
-                      <th className="text-end">Cantidad</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {estadisticas.documentos_por_tipo.map((item, index) => (
-                      <tr key={index}>
-                        <td>{item.tipo}</td>
-                        <td className="text-end">
-                          <strong>{item.cantidad}</strong>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Casos por Tribunal */}
       {estadisticas && (
         <div className="row mb-4">
           <div className="col-md-12">
             <div className="card">
-              <div className="card-header bg-info text-white">
-                <h5 className="mb-0">🏛️ Casos por Tribunal</h5>
+              <div className="card-header bg-primary text-white">
+                📊 Estadísticas del Sistema
               </div>
               <div className="card-body">
-                <table className="table table-hover">
-                  <thead>
-                    <tr>
-                      <th>Tribunal</th>
-                      <th className="text-end">Cantidad de Casos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {estadisticas.casos_por_tribunal.map((item, index) => (
-                      <tr key={index}>
-                        <td>{item.tribunal}</td>
-                        <td className="text-end">
-                          <strong>{item.cantidad}</strong>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="row">
+                  <div className="col-md-3">
+                    <div className="text-center">
+                      <h4>{estadisticas.casos.total}</h4>
+                      <p className="text-muted">Total Casos</p>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="text-center">
+                      <h4 className="text-success">{estadisticas.casos.activos}</h4>
+                      <p className="text-muted">Casos Activos</p>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="text-center">
+                      <h4>{estadisticas.documentos_total}</h4>
+                      <p className="text-muted">Documentos</p>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="text-center">
+                      <h4>{estadisticas.movimientos_ultimos_30_dias}</h4>
+                      <p className="text-muted">Movimientos (30 días)</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Botones de Descarga de Reportes */}
-      <div className="card">
-        <div className="card-header bg-dark text-white">
-          <h5 className="mb-0">📥 Descargar Reportes</h5>
+      {/* RF6.1: Reporte de Estado de Causas */}
+      <div className="card mb-4">
+        <div className="card-header bg-info text-white">
+          📋 RF6.1: Reporte de Estado de Causas por Tribunal/Abogado
         </div>
         <div className="card-body">
-          <p className="text-muted">
-            Seleccione el tipo de reporte que desea generar y descargar en formato CSV.
-          </p>
-          
-          <div className="row g-3">
+          <div className="row mb-3">
             <div className="col-md-6">
-              <div className="card h-100">
-                <div className="card-body">
-                  <h6 className="card-title">📋 Reporte de Casos</h6>
-                  <p className="card-text text-muted">
-                    Descarga un CSV con todos los casos del sistema, incluyendo RIT, estado, 
-                    tribunal y descripción.
-                  </p>
-                  <button 
-                    className="btn btn-primary w-100" 
-                    onClick={() => handleDownloadReporte('casos')}
-                  >
-                    <i className="bi bi-download"></i> Descargar Casos (CSV)
-                  </button>
-                </div>
-              </div>
+              <label className="form-label">Filtrar por Tribunal (Opcional)</label>
+              <select 
+                className="form-select" 
+                value={filtroTribunal}
+                onChange={(e) => setFiltroTribunal(e.target.value)}
+              >
+                <option value="">Todos los tribunales</option>
+                {tribunales.map(t => (
+                  <option key={t.id_tribunal} value={t.id_tribunal}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
             </div>
-
             <div className="col-md-6">
-              <div className="card h-100">
-                <div className="card-body">
-                  <h6 className="card-title">📄 Reporte de Documentos</h6>
-                  <p className="card-text text-muted">
-                    Descarga un CSV con todos los documentos registrados, incluyendo nombre, 
-                    tipo, fecha y caso asociado.
-                  </p>
-                  <button 
-                    className="btn btn-success w-100" 
-                    onClick={() => handleDownloadReporte('documentos')}
-                  >
-                    <i className="bi bi-download"></i> Descargar Documentos (CSV)
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-md-6">
-              <div className="card h-100">
-                <div className="card-body">
-                  <h6 className="card-title">⏰ Reporte de Vencimientos</h6>
-                  <p className="card-text text-muted">
-                    Descarga un CSV con los casos que tienen vencimientos en los próximos 30 días.
-                  </p>
-                  <button 
-                    className="btn btn-warning w-100" 
-                    onClick={() => handleDownloadReporte('vencimientos')}
-                  >
-                    <i className="bi bi-download"></i> Descargar Vencimientos (CSV)
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-md-6">
-              <div className="card h-100 border-info">
-                <div className="card-body">
-                  <h6 className="card-title">📊 Estadísticas Completas</h6>
-                  <p className="card-text text-muted">
-                    Actualizar las estadísticas mostradas en esta página.
-                  </p>
-                  <button 
-                    className="btn btn-info w-100" 
-                    onClick={cargarEstadisticas}
-                  >
-                    <i className="bi bi-arrow-clockwise"></i> Actualizar Estadísticas
-                  </button>
-                </div>
-              </div>
+              <label className="form-label">Filtrar por Estado (Opcional)</label>
+              <select 
+                className="form-select"
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+              >
+                <option value="">Todos los estados</option>
+                <option value="ACTIVA">Activa</option>
+                <option value="CONGELADA">Congelada</option>
+                <option value="ARCHIVADA">Archivada</option>
+              </select>
             </div>
           </div>
+          <button 
+            className="btn btn-primary"
+            onClick={descargarReporteCasos}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Generando...
+              </>
+            ) : (
+              <>📥 Descargar Reporte CSV</>
+            )}
+          </button>
+          <p className="text-muted mt-2 mb-0">
+            <small>Genera un archivo CSV con todas las causas según los filtros seleccionados.</small>
+          </p>
+        </div>
+      </div>
+
+      {/* RF6.2: Reporte de Vencimientos */}
+      <div className="card mb-4">
+        <div className="card-header bg-warning">
+          ⚠️ RF6.2: Reporte de Vencimiento de Plazos
+        </div>
+        <div className="card-body">
+          <div className="row mb-3">
+            <div className="col-md-6">
+              <label className="form-label">Próximos Días</label>
+              <input 
+                type="number" 
+                className="form-control"
+                min="1"
+                max="365"
+                value={diasVencimiento}
+                onChange={(e) => setDiasVencimiento(e.target.value)}
+              />
+              <small className="text-muted">
+                Genera reporte de vencimientos para los próximos {diasVencimiento} días
+              </small>
+            </div>
+          </div>
+          <button 
+            className="btn btn-warning"
+            onClick={descargarReporteVencimientos}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Generando...
+              </>
+            ) : (
+              <>📥 Descargar Reporte de Vencimientos (CSV)</>
+            )}
+          </button>
+          <p className="text-muted mt-2 mb-0">
+            <small>Genera un CSV con todos los vencimientos de plazos próximos.</small>
+          </p>
+        </div>
+      </div>
+
+      {/* RF6.3: Historial Completo en PDF */}
+      <div className="card mb-4">
+        <div className="card-header bg-danger text-white">
+          📄 RF6.3: Exportar Historial Completo de Causa (PDF)
+        </div>
+        <div className="card-body">
+          <div className="row mb-3">
+            <div className="col-md-8">
+              <label className="form-label">Seleccionar Caso</label>
+              <select 
+                className="form-select"
+                value={casoSeleccionado}
+                onChange={(e) => setCasoSeleccionado(e.target.value)}
+              >
+                <option value="">Seleccione un caso...</option>
+                {casos.map(caso => (
+                  <option key={caso.id_causa} value={caso.id_causa}>
+                    {caso.rit} - {caso.descripcion || 'Sin descripción'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <button 
+            className="btn btn-danger"
+            onClick={descargarPDFCaso}
+            disabled={loading || !casoSeleccionado}
+          >
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Generando PDF...
+              </>
+            ) : (
+              <>📥 Descargar PDF Completo</>
+            )}
+          </button>
+          <p className="text-muted mt-2 mb-0">
+            <small>
+              Genera un PDF completo con toda la información del caso: partes, movimientos, documentos.
+            </small>
+          </p>
         </div>
       </div>
 
       {/* Información adicional */}
-      <div className="alert alert-info mt-4" role="alert">
-        <h6 className="alert-heading">ℹ️ Información sobre los Reportes</h6>
-        <p className="mb-0">
-          Los reportes se generan en formato CSV para fácil importación a Excel u otras herramientas de análisis. 
-          Los archivos incluyen encabezados descriptivos y pueden ser filtrados según sus necesidades.
-        </p>
+      <div className="alert alert-info" role="alert">
+        <h6 className="alert-heading">ℹ️ Información sobre Reportes</h6>
+        <ul className="mb-0">
+          <li><strong>RF6.1:</strong> Reportes de casos permiten filtrar por tribunal y estado</li>
+          <li><strong>RF6.2:</strong> Reportes de vencimientos alertan sobre plazos próximos a vencer</li>
+          <li><strong>RF6.3:</strong> PDF completo incluye toda la información histórica de la causa</li>
+          <li>Todos los reportes se descargan automáticamente al hacer clic</li>
+        </ul>
       </div>
     </div>
   );
