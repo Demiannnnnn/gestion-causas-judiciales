@@ -4,12 +4,9 @@
 --   Autor: (Camilo)
 --   Fecha: 2025-11-01
 -- ============================================================
-
-CREATE DATABASE IF NOT EXISTS gestion_causas
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE gestion_causas;
+-- NOTA: El script se ejecuta dentro de la base de datos definida
+-- por la variable MYSQL_DATABASE en docker-compose.yml.
+-- No se necesita CREATE DATABASE ni USE.
 
 -- ============================================================
 --  TABLA: TRIBUNAL
@@ -192,12 +189,11 @@ CREATE FULLTEXT INDEX ft_parte_nombre ON Parte(nombre);
 -- ============================================================
 --  USUARIO: admin_app
 --  Rol: Administrador general del sistema
---  Permisos: Total sobre la base gestion_causas
+--  Permisos: Total sobre la base de datos
 -- ============================================================
 
-CREATE USER 'admin_app'@'%' IDENTIFIED BY 'AdminApp#2025!';
-GRANT ALL PRIVILEGES ON gestion_causas.* TO 'admin_app'@'%'
-    WITH GRANT OPTION;
+CREATE USER IF NOT EXISTS 'admin_app'@'%' IDENTIFIED BY 'AdminApp#2025!';
+GRANT ALL ON *.* TO 'admin_app'@'%' WITH GRANT OPTION;
 
 -- ============================================================
 --  USUARIO: abogado_app
@@ -206,16 +202,16 @@ GRANT ALL PRIVILEGES ON gestion_causas.* TO 'admin_app'@'%'
 --             Sin privilegios de administración.
 -- ============================================================
 
-CREATE USER 'abogado_app'@'%' IDENTIFIED BY 'Abogado#2025!';
-GRANT SELECT, INSERT, UPDATE ON gestion_causas.Causa TO 'abogado_app'@'%';
-GRANT SELECT, INSERT, UPDATE ON gestion_causas.Parte TO 'abogado_app'@'%';
-GRANT SELECT, INSERT, UPDATE ON gestion_causas.CausaParte TO 'abogado_app'@'%';
-GRANT SELECT, INSERT, UPDATE ON gestion_causas.Documento TO 'abogado_app'@'%';
-GRANT SELECT, INSERT ON gestion_causas.Movimiento TO 'abogado_app'@'%';
-GRANT SELECT ON gestion_causas.Tribunal TO 'abogado_app'@'%';
-GRANT SELECT ON gestion_causas.Usuario TO 'abogado_app'@'%';
-GRANT SELECT, INSERT ON gestion_causas.Notificacion TO 'abogado_app'@'%';
-GRANT SELECT, INSERT ON gestion_causas.LogAccion TO 'abogado_app'@'%';
+CREATE USER IF NOT EXISTS 'abogado_app'@'%' IDENTIFIED BY 'Abogado#2025!';
+GRANT SELECT, INSERT, UPDATE ON Causa TO 'abogado_app'@'%';
+GRANT SELECT, INSERT, UPDATE ON Parte TO 'abogado_app'@'%';
+GRANT SELECT, INSERT, UPDATE ON CausaParte TO 'abogado_app'@'%';
+GRANT SELECT, INSERT, UPDATE ON Documento TO 'abogado_app'@'%';
+GRANT SELECT, INSERT ON Movimiento TO 'abogado_app'@'%';
+GRANT SELECT ON Tribunal TO 'abogado_app'@'%';
+GRANT SELECT ON Usuario TO 'abogado_app'@'%';
+GRANT SELECT, INSERT ON Notificacion TO 'abogado_app'@'%';
+GRANT SELECT, INSERT ON LogAccion TO 'abogado_app'@'%';
 
 -- ============================================================
 --  USUARIO: asistente_app
@@ -224,14 +220,14 @@ GRANT SELECT, INSERT ON gestion_causas.LogAccion TO 'abogado_app'@'%';
 --             Sin acceso a administración ni configuración.
 -- ============================================================
 
-CREATE USER 'asistente_app'@'%' IDENTIFIED BY 'Asistente#2025!';
-GRANT SELECT ON gestion_causas.Causa TO 'asistente_app'@'%';
-GRANT SELECT ON gestion_causas.Tribunal TO 'asistente_app'@'%';
-GRANT SELECT ON gestion_causas.Parte TO 'asistente_app'@'%';
-GRANT INSERT, SELECT ON gestion_causas.Movimiento TO 'asistente_app'@'%';
-GRANT INSERT, SELECT ON gestion_causas.Documento TO 'asistente_app'@'%';
-GRANT INSERT, SELECT ON gestion_causas.Notificacion TO 'asistente_app'@'%';
-GRANT INSERT ON gestion_causas.LogAccion TO 'asistente_app'@'%';
+CREATE USER IF NOT EXISTS 'asistente_app'@'%' IDENTIFIED BY 'Asistente#2025!';
+GRANT SELECT ON Causa TO 'asistente_app'@'%';
+GRANT SELECT ON Tribunal TO 'asistente_app'@'%';
+GRANT SELECT ON Parte TO 'asistente_app'@'%';
+GRANT INSERT, SELECT ON Movimiento TO 'asistente_app'@'%';
+GRANT INSERT, SELECT ON Documento TO 'asistente_app'@'%';
+GRANT INSERT, SELECT ON Notificacion TO 'asistente_app'@'%';
+GRANT INSERT ON LogAccion TO 'asistente_app'@'%';
 
 -- ============================================================
 --  USUARIO: sistemas_app
@@ -240,9 +236,9 @@ GRANT INSERT ON gestion_causas.LogAccion TO 'asistente_app'@'%';
 --             Sin privilegios para modificar datos legales.
 -- ============================================================
 
-CREATE USER 'sistemas_app'@'localhost' IDENTIFIED BY 'Sistemas#2025!';
-GRANT SELECT ON gestion_causas.* TO 'sistemas_app'@'localhost';
-GRANT INSERT, UPDATE ON gestion_causas.LogAccion TO 'sistemas_app'@'localhost';
+CREATE USER IF NOT EXISTS 'sistemas_app'@'%' IDENTIFIED BY 'Sistemas#2025!';
+GRANT SELECT ON *.* TO 'sistemas_app'@'%';
+GRANT INSERT, UPDATE ON LogAccion TO 'sistemas_app'@'%';
 
 -- ============================================================
 --  USUARIO: readonly_app
@@ -250,132 +246,23 @@ GRANT INSERT, UPDATE ON gestion_causas.LogAccion TO 'sistemas_app'@'localhost';
 --  Permisos: Solo lectura global
 -- ============================================================
 
-CREATE USER 'readonly_app'@'%' IDENTIFIED BY 'ReadOnly#2025!';
-GRANT SELECT ON gestion_causas.* TO 'readonly_app'@'%';
+CREATE USER IF NOT EXISTS 'readonly_app'@'%' IDENTIFIED BY 'ReadOnly#2025!';
+GRANT SELECT ON *.* TO 'readonly_app'@'%';
 
 -- ============================================================
---  TRIGGERS PARA AUDITORÍA EN LOGACCION
+--  USUARIO PARA REPLICACIÓN
 -- ============================================================
-
-DELIMITER $$
-
--- Triggers para la tabla Causa
-CREATE TRIGGER trg_causa_after_insert
-AFTER INSERT ON Causa
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, detalle)
-    VALUES ('Causa', 'INSERT', JSON_OBJECT('id', NEW.id_causa, 'rit', NEW.rit));
-END$$
-
-CREATE TRIGGER trg_causa_after_update
-AFTER UPDATE ON Causa
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, detalle)
-    VALUES ('Causa', 'UPDATE', JSON_OBJECT('id', NEW.id_causa, 'cambios', JSON_OBJECT('estado_anterior', OLD.estado, 'estado_nuevo', NEW.estado)));
-END$$
-
-CREATE TRIGGER trg_causa_after_delete
-AFTER DELETE ON Causa
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, detalle)
-    VALUES ('Causa', 'DELETE', JSON_OBJECT('id', OLD.id_causa, 'rit', OLD.rit));
-END$$
-
--- Triggers para la tabla Documento
-CREATE TRIGGER trg_documento_after_insert
-AFTER INSERT ON Documento
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, id_usuario, detalle)
-    VALUES ('Documento', 'INSERT', NEW.subido_por, JSON_OBJECT('id', NEW.id_documento, 'nombre', NEW.nombre_archivo, 'id_causa', NEW.id_causa));
-END$$
-
-CREATE TRIGGER trg_documento_after_delete
-AFTER DELETE ON Documento
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, id_usuario, detalle)
-    VALUES ('Documento', 'DELETE', OLD.subido_por, JSON_OBJECT('id', OLD.id_documento, 'nombre', OLD.nombre_archivo, 'id_causa', OLD.id_causa));
-END$$
-
--- Triggers para la tabla Parte
-CREATE TRIGGER trg_parte_after_insert
-AFTER INSERT ON Parte
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, detalle)
-    VALUES ('Parte', 'INSERT', JSON_OBJECT('id', NEW.id_parte, 'nombre', NEW.nombre, 'tipo', NEW.tipo));
-END$$
-
-CREATE TRIGGER trg_parte_after_update
-AFTER UPDATE ON Parte
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, detalle)
-    VALUES ('Parte', 'UPDATE', JSON_OBJECT('id', NEW.id_parte, 'nombre', NEW.nombre));
-END$$
-
-CREATE TRIGGER trg_parte_after_delete
-AFTER DELETE ON Parte
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, detalle)
-    VALUES ('Parte', 'DELETE', JSON_OBJECT('id', OLD.id_parte, 'nombre', OLD.nombre));
-END$$
-
--- Triggers para la tabla CausaParte
-CREATE TRIGGER trg_causaparte_after_insert
-AFTER INSERT ON CausaParte
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, detalle)
-    VALUES ('CausaParte', 'INSERT', JSON_OBJECT('id_causa', NEW.id_causa, 'id_parte', NEW.id_parte));
-END$$
-
-CREATE TRIGGER trg_causaparte_after_delete
-AFTER DELETE ON CausaParte
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, detalle)
-    VALUES ('CausaParte', 'DELETE', JSON_OBJECT('id_causa', OLD.id_causa, 'id_parte', OLD.id_parte));
-END$$
-
--- Triggers para la tabla Movimiento
-CREATE TRIGGER trg_movimiento_after_insert
-AFTER INSERT ON Movimiento
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, detalle)
-    VALUES ('Movimiento', 'INSERT', JSON_OBJECT('id', NEW.id_movimiento, 'tipo', NEW.tipo, 'id_causa', NEW.id_causa));
-END$$
-
--- Triggers para la tabla Notificacion
-CREATE TRIGGER trg_notificacion_after_insert
-AFTER INSERT ON Notificacion
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, id_usuario, detalle)
-    VALUES ('Notificacion', 'INSERT', NEW.id_usuario, JSON_OBJECT('id', NEW.id_notificacion, 'tipo', NEW.tipo, 'estado', NEW.estado));
-END$$
-
-CREATE TRIGGER trg_notificacion_after_update
-AFTER UPDATE ON Notificacion
-FOR EACH ROW
-BEGIN
-    INSERT INTO LogAccion (entidad, accion, id_usuario, detalle)
-    VALUES ('Notificacion', 'UPDATE', NEW.id_usuario, JSON_OBJECT('id', NEW.id_notificacion, 'estado_anterior', OLD.estado, 'estado_nuevo', NEW.estado));
-END$$
-
-DELIMITER ;
+-- Contraseña simple para el ejemplo. En producción, usar vault o secrets.
+CREATE USER IF NOT EXISTS 'replicator'@'%' IDENTIFIED BY 'repl_password' REQUIRE SSL;
+GRANT REPLICATION_SLAVE, REPLICATION_CLIENT ON *.* TO 'replicator'@'%';
 
 -- ============================================================
---  APLICAR CAMBIOS
+--  USUARIO PARA MONITOREO (ProxySQL)
 -- ============================================================
+CREATE USER 'monitor_user'@'%' IDENTIFIED BY '***REMOVED***';
+GRANT USAGE ON *.* TO 'monitor_user'@'%';
 
-FLUSH PRIVILEGES;
+
 
 -- ============================================================
 --  USUARIO DE PRUEBA INICIAL
@@ -383,4 +270,3 @@ FLUSH PRIVILEGES;
 -- ============================================================
 INSERT INTO `Usuario` (`nombre`, `correo`, `password_hash`, `rol`, `activo`) VALUES
 ('Admin Principal', 'admin@judicial.cl', '$2b$12$PEm.9URVdnDqQELR7Zh0x.kH.vaK96CSW6KvfddCE3pNQYcIJasHW', 'ADMINISTRADOR', 1);
-

@@ -1,4 +1,4 @@
-FROM mysql:lts-oraclelinux9
+FROM mysql:8.4
 
 # Copiar el script de inicialización
-COPY ./mysql/init.sql /docker-entrypoint-initdb.d/
+
