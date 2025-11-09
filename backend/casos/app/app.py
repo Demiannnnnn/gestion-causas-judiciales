@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 import os
 
 from common.database import db_manager
-from common.models import Causa, Tribunal
+from common.models import Causa, Tribunal, Parte, CausaParte, Movimiento
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ThatWasEpic')
@@ -44,12 +44,23 @@ def get_caso(id):
 @app.route('/', methods=['POST'])
 def create_caso():
     data = request.json
+    
+    # Parsear fecha_inicio si viene como string
+    fecha_inicio = data.get('fecha_inicio')
+    if fecha_inicio and isinstance(fecha_inicio, str):
+        try:
+            fecha_inicio = datetime.datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+        except ValueError:
+            fecha_inicio = datetime.date.today()
+    elif not fecha_inicio:
+        fecha_inicio = datetime.date.today()
+    
     nuevo_caso = Causa(
         rit=data['rit'],
         tribunal_id=data['tribunal_id'],
-        fecha_inicio=datetime.date.today(),  # Fecha actual automática
-        estado='ACTIVA',
-        descripcion=data.get('descripcion')  # Nuevo campo de descripción
+        fecha_inicio=fecha_inicio,
+        estado=data.get('estado', 'ACTIVA'),
+        descripcion=data.get('descripcion')
     )
     with db_manager.get_session() as session:
         try:
@@ -112,6 +123,43 @@ def delete_caso(id):
         
         session.delete(caso)
         return jsonify({'mensaje': 'Caso eliminado'})
+
+# Endpoint para obtener partes de un caso
+@app.route('/<int:id>/partes', methods=['GET'])
+def get_caso_partes(id):
+    with db_manager.get_session() as session:
+        caso = session.query(Causa).filter(Causa.id_causa == id).first()
+        if not caso:
+            return jsonify({'error': 'Caso no encontrado'}), 404
+        
+        partes_data = []
+        for cp in caso.partes:
+            parte = cp.parte
+            representante = cp.representante.nombre if cp.representante else None
+            partes_data.append({
+                'id_parte': parte.id_parte,
+                'nombre': parte.nombre,
+                'tipo': parte.tipo,
+                'rut': parte.rut,
+                'representante': representante
+            })
+        return jsonify(partes_data)
+
+# Endpoint para obtener movimientos de un caso
+@app.route('/<int:id>/movimientos', methods=['GET'])
+def get_caso_movimientos(id):
+    with db_manager.get_session() as session:
+        caso = session.query(Causa).filter(Causa.id_causa == id).first()
+        if not caso:
+            return jsonify({'error': 'Caso no encontrado'}), 404
+        
+        movimientos_data = [{
+            'id_movimiento': m.id_movimiento,
+            'fecha': m.fecha.isoformat() if m.fecha else None,
+            'descripcion': m.descripcion,
+            'tipo': m.tipo
+        } for m in caso.movimientos]
+        return jsonify(movimientos_data)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)

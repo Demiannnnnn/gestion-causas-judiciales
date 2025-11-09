@@ -24,7 +24,7 @@ services:
     container_name: db-master
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-appdb}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-causas_judiciales_db}
       MYSQL_USER: ${MYSQL_USER:-appuser}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
     command:
@@ -129,7 +129,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development 
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     volumes:
@@ -154,7 +154,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - SECRET_KEY=${CASOS_SECRET_KEY}
       - REDIS_URL=redis://redis:6379/1
     volumes:
@@ -182,7 +182,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - UPLOAD_FOLDER=/app/uploads
     volumes:
       - ./backend/documentos/app:/app
@@ -205,11 +205,11 @@ services:
     build:
       context: ./backend/notificaciones
     container_name: notificaciones
-    command: sh /app/start.sh
+    command: sh -c "gunicorn --bind 0.0.0.0:8003 app:app & python worker.py"
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/2
       - MAIL_SERVER=${MAIL_SERVER:-mailhog}
       - MAIL_PORT=${MAIL_PORT:-1025}

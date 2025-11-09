@@ -8,6 +8,8 @@ function Casos() {
   const [newCaso, setNewCaso] = useState({
     rit: '',
     tribunal_id: '',
+    fecha_inicio: '',
+    estado: 'ACTIVA',
     descripcion: ''
   });
 
@@ -39,6 +41,8 @@ function Casos() {
     const payload = {
         rit: newCaso.rit,
         tribunal_id: parseInt(newCaso.tribunal_id, 10),
+        fecha_inicio: newCaso.fecha_inicio,
+        estado: newCaso.estado,
         descripcion: newCaso.descripcion
     };
 
@@ -48,7 +52,7 @@ function Casos() {
     })
       .then(() => {
         fetchCasos(); // Recargar la lista de casos
-        setNewCaso({ rit: '', tribunal_id: '', descripcion: '' }); // Limpiar formulario
+        setNewCaso({ rit: '', tribunal_id: '', fecha_inicio: '', estado: 'ACTIVA', descripcion: '' }); // Limpiar formulario
       })
       .catch(error => console.error('Error al crear caso:', error));
   };
@@ -87,6 +91,20 @@ function Casos() {
                 </select>
               </div>
             </div>
+            <div className="row mb-3">
+              <div className="col-md-6">
+                <label htmlFor="fecha_inicio" className="form-label">Fecha de Inicio</label>
+                <input type="date" className="form-control" id="fecha_inicio" name="fecha_inicio" value={newCaso.fecha_inicio} onChange={handleInputChange} required />
+              </div>
+              <div className="col-md-6">
+                <label htmlFor="estado" className="form-label">Estado</label>
+                <select className="form-select" id="estado" name="estado" value={newCaso.estado} onChange={handleInputChange}>
+                  <option value="ACTIVA">Activa</option>
+                  <option value="CONGELADA">Congelada</option>
+                  <option value="ARCHIVADA">Archivada</option>
+                </select>
+              </div>
+            </div>
             <div className="mb-3">
                 <label htmlFor="descripcion" className="form-label">Descripción</label>
                 <textarea className="form-control" id="descripcion" name="descripcion" rows="3" value={newCaso.descripcion} onChange={handleInputChange}></textarea>
@@ -105,6 +123,7 @@ function Casos() {
               <tr>
                 <th>ID Causa</th>
                 <th>RIT</th>
+                <th>Fecha Inicio</th>
                 <th>Estado</th>
                 <th>Descripción</th>
                 <th>Acciones</th>
@@ -115,7 +134,8 @@ function Casos() {
                 <tr key={caso.id_causa}>
                   <td>{caso.id_causa}</td>
                   <td>{caso.rit}</td>
-                  <td><span className={`badge bg-${caso.estado === 'ACTIVA' ? 'success' : 'secondary'}`}>{caso.estado}</span></td>
+                  <td>{caso.fecha_inicio ? new Date(caso.fecha_inicio).toLocaleDateString() : '-'}</td>
+                  <td><span className={`badge bg-${caso.estado === 'ACTIVA' ? 'success' : caso.estado === 'CONGELADA' ? 'warning' : 'secondary'}`}>{caso.estado}</span></td>
                   <td>{caso.descripcion}</td>
                   <td>
                     <Link to={`/casos/${caso.id_causa}`} className="btn btn-info btn-sm me-2">Detalles</Link>
