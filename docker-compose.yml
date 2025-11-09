@@ -328,6 +328,25 @@ services:
     networks:
       - app-network
 
+  backup-service:
+    build:
+      context: ./backup-service
+    container_name: backup-service
+    environment:
+      - MYSQL_HOST=db-master
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-***REMOVED***}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-causas_judiciales_db}
+      - BACKUP_RETENTION_DAYS=7
+    volumes:
+      - ./backups:/backups
+      - documentos-uploads:/data/documentos:ro
+    networks:
+      - app-network
+    depends_on:
+      - db-master
+    restart: unless-stopped
+
 networks:
   app-network:
     driver: bridge
