@@ -122,6 +122,24 @@ services:
       timeout: 3s
       retries: 5
 
+  redis-replica:
+    image: redis:7-alpine
+    container_name: redis-replica
+    command: redis-server --appendonly yes --replicaof redis 6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "6380:6379"
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   autenticacion:
     build:
       context: ./backend/autenticacion
