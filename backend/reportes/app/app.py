@@ -14,12 +14,6 @@ from reportlab.lib.units import inch
 app = Flask(__name__)
 CORS(app)
 
-@app.route("/casos", methods=["GET"])
-def get_casos():
-    with db_manager.get_session() as session:
-        casos = session.query(Causa).all()
-        return jsonify([c.to_json() for c in casos])
-
 @app.route("/tribunales", methods=["GET"])
 def get_tribunales():
     with db_manager.get_session() as session:
@@ -35,7 +29,7 @@ def get_tribunales():
 def health_check():
     return jsonify({"status": "healthy"})
 
-@app.route("/reportes/estadisticas", methods=["GET"])
+@app.route("/estadisticas", methods=["GET"])
 def get_estadisticas():
     with db_manager.get_session() as session:
         total_casos = session.query(Causa).count()
@@ -54,7 +48,7 @@ def get_estadisticas():
             "movimientos_ultimos_30_dias": movimientos_ultimos_30_dias
         })
 
-@app.route("/reportes/casos", methods=["GET"])
+@app.route("/casos", methods=["GET"])
 def reporte_casos():
     """
     RF6.1: Generar reportes de estado de causas por tribunal o abogado.
@@ -106,7 +100,7 @@ def reporte_casos():
         return jsonify({"error": f"Error al generar el reporte: {e}"}), 500
 
 
-@app.route("/reportes/vencimientos", methods=["GET"])
+@app.route("/vencimientos", methods=["GET"])
 def reporte_vencimientos():
     """
     RF6.2: Generar un reporte de vencimiento de plazos para los próximos 30 días.
@@ -150,7 +144,7 @@ def reporte_vencimientos():
     except Exception as e:
         return jsonify({"error": f"Error al generar el reporte: {e}"}), 500
 
-@app.route('/reportes/causa-history/<string:caso_rit>/pdf', methods=['GET'])
+@app.route('/causa-history/<string:caso_rit>/pdf', methods=['GET'])
 def get_causa_history_pdf(caso_rit):
     """
     RF6.3: Exportar el historial completo de una causa en formato PDF.
