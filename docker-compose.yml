@@ -40,7 +40,7 @@ services:
       - --ssl-key=/etc/mysql/certs/server-key.pem
     volumes:
       - mysql-master-data:/var/lib/mysql
-      - ./db/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./db/mysql:/docker-entrypoint-initdb.d:ro
       - ./db/certs:/etc/mysql/certs:ro
     ports:
       - "3307:3306"
@@ -53,6 +53,26 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  db-proxy:
+    image: proxysql/proxysql:2.5.5
+    container_name: db-proxy
+    environment:
+      - MYSQL_MONITOR_USER=${MYSQL_MONITOR_USER:-monitor_user}
+      - MYSQL_MONITOR_PASSWORD=${MYSQL_MONITOR_PASSWORD:-***REMOVED***}
+    ports:
+      - "6033:6033" # MySQL traffic
+      - "6032:6032" # Admin interface
+    volumes:
+      - ./proxy/proxysql.cnf:/etc/proxysql.cnf:ro
+    networks:
+      - app-network
+    restart: always
+    depends_on:
+      db-master:
+        condition: service_healthy
+      db-slave:
+        condition: service_started # Slave doesn't have a healthcheck, so we wait for it to start
 
   db-slave:
     build:
@@ -111,7 +131,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development 
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     volumes:
@@ -127,9 +147,7 @@ services:
       - app-network
     restart: unless-stopped
     depends_on:
-      db-master:
-        condition: service_healthy
-      redis:
+      db-proxy:
         condition: service_started
 
   casos:
@@ -139,7 +157,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/1
     volumes:
       - ./backend/casos/app:/app
@@ -154,8 +172,8 @@ services:
       - app-network
     restart: unless-stopped
     depends_on:
-      db-master:
-        condition: service_healthy
+      db-proxy:
+        condition: service_started
 
   documentos:
     build:
@@ -164,7 +182,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - UPLOAD_FOLDER=/app/uploads
     volumes:
       - ./backend/documentos/app:/app
@@ -180,8 +198,8 @@ services:
       - app-network
     restart: unless-stopped
     depends_on:
-      db-master:
-        condition: service_healthy
+      db-proxy:
+        condition: service_started
 
   notificaciones:
     build:
@@ -190,7 +208,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/2
       - MAIL_SERVER=${SMTP_SERVER:-mailhog}
       - MAIL_PORT=${SMTP_PORT:-1025}
@@ -209,8 +227,8 @@ services:
       - app-network
     restart: unless-stopped
     depends_on:
-      db-master:
-        condition: service_healthy
+      db-proxy:
+        condition: service_started
 
   frontend:
     build:
