@@ -18,7 +18,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - app-network
+      - frontend-network
+      - backend-network
     restart: unless-stopped
 
   db-master:
@@ -46,7 +47,7 @@ services:
     ports:
       - "3307:3306"
     networks:
-      - app-network
+      - database-network
     restart: always
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
@@ -67,7 +68,8 @@ services:
     volumes:
       - ./proxy/proxysql.cnf:/etc/proxysql.cnf:ro
     networks:
-      - app-network
+      - backend-network
+      - database-network
     restart: always
     depends_on:
       db-master:
@@ -105,7 +107,7 @@ services:
     ports:
       - "3308:3306"
     networks:
-      - app-network
+      - database-network
     restart: always
 
   redis:
@@ -117,7 +119,7 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - app-network
+      - cache-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -135,7 +137,7 @@ services:
     ports:
       - "6380:6379"
     networks:
-      - app-network
+      - cache-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -163,7 +165,9 @@ services:
       - "traefik.http.routers.auth.middlewares=auth-strip"      
       - "traefik.http.services.auth.loadbalancer.server.port=8000"
     networks:
-      - app-network
+      - backend-network
+      - database-network
+      - cache-network
     restart: unless-stopped
     depends_on:
       db-master:
@@ -188,7 +192,9 @@ services:
       - "traefik.http.routers.casos.middlewares=casos-strip"
       - "traefik.http.services.casos.loadbalancer.server.port=5001"
     networks:
-      - app-network
+      - backend-network
+      - database-network
+      - cache-network
     restart: unless-stopped
     depends_on:
       db-master:
@@ -216,7 +222,8 @@ services:
       - "traefik.http.routers.docs.middlewares=docs-strip"
       - "traefik.http.services.docs.loadbalancer.server.port=8002"
     networks:
-      - app-network
+      - backend-network
+      - database-network
     restart: unless-stopped
     depends_on:
       db-master:
@@ -240,7 +247,9 @@ services:
       - ./backend/notificaciones/app:/app
       - ./backend/common:/app/common
     networks:
-      - app-network
+      - backend-network
+      - database-network
+      - cache-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.notificaciones.rule=PathPrefix(`/api/notificaciones`)"
@@ -269,7 +278,8 @@ services:
       - "traefik.http.routers.reportes.middlewares=reportes-strip"
       - "traefik.http.services.reportes.loadbalancer.server.port=8004"
     networks:
-      - app-network
+      - backend-network
+      - database-network
 
   ia-seguridad:
     build:
@@ -291,7 +301,8 @@ services:
       - "traefik.http.routers.ia-seguridad.middlewares=ia-seguridad-strip"
       - "traefik.http.services.ia-seguridad.loadbalancer.server.port=8005"
     networks:
-      - app-network
+      - backend-network
+      - monitoring-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
@@ -318,7 +329,7 @@ services:
     depends_on:
       - reportes
     networks:
-      - app-network
+      - frontend-network
     restart: unless-stopped
 
     deploy:
@@ -336,7 +347,7 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
     networks:
-      - app-network
+      - monitoring-network
     restart: unless-stopped
 
   grafana:
@@ -350,7 +361,7 @@ services:
     ports:
       - "3000:3000"
     networks:
-      - app-network
+      - monitoring-network
     restart: unless-stopped
     depends_on:
       - prometheus
@@ -362,7 +373,7 @@ services:
       - "1025:1025"
       - "8025:8025"
     networks:
-      - app-network
+      - backend-network
 
   backup-service:
     build:
@@ -378,14 +389,42 @@ services:
       - ./backups:/backups
       - documentos-uploads:/data/documentos:ro
     networks:
-      - app-network
+      - database-network
+      - monitoring-network
     depends_on:
       - db-master
     restart: unless-stopped
 
 networks:
-  app-network:
+  frontend-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  
+  backend-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+  
+  database-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/24
+  
+  cache-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/24
+  
+  monitoring-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.24.0.0/24
 
 volumes:
   mysql-master-data:
