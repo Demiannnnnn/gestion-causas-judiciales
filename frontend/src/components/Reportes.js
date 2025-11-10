@@ -38,7 +38,7 @@ function Reportes() {
   const descargarReporteCasos = async () => {
     setLoading(true);
     try {
-      let url = '/api/reportes/casos/csv?';
+      let url = '/api/reportes/casos?';
       if (filtroTribunal) url += `tribunal_id=${filtroTribunal}&`;
       if (filtroEstado) url += `estado=${filtroEstado}`;
       
@@ -72,7 +72,7 @@ function Reportes() {
   const descargarReporteVencimientos = async () => {
     setLoading(true);
     try {
-      const url = `/api/reportes/vencimientos/csv?dias=${diasVencimiento}`;
+      const url = `/api/reportes/vencimientos?dias=${diasVencimiento}`;
       
       const token = localStorage.getItem('token');
       const response = await fetch(url, {
@@ -108,7 +108,7 @@ function Reportes() {
     
     setLoading(true);
     try {
-      const url = `/api/reportes/caso/${casoSeleccionado}/pdf`;
+      const url = `/api/reportes/causa-history/${casoSeleccionado}/pdf`;
       
       const token = localStorage.getItem('token');
       const response = await fetch(url, {
