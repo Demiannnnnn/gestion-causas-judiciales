@@ -1,0 +1,14 @@
+-- ============================================================
+-- CREAR USUARIO DE REPLICACIÓN EN SLAVE
+-- ============================================================
+-- Este script asegura que el usuario de replicación exista
+-- en el slave para que el master pueda conectarse durante failback
+
+CREATE USER IF NOT EXISTS 'replicator'@'%' 
+    IDENTIFIED WITH caching_sha2_password 
+    BY '__MYSQL_REPLICATION_PASSWORD__' 
+    REQUIRE SSL;
+
+GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'replicator'@'%';
+
+FLUSH PRIVILEGES;

@@ -1,0 +1,47 @@
+-- ============================================================
+--  USUARIOS Y PERMISOS (PLANTILLA)
+-- ============================================================
+
+-- Administrador
+CREATE USER IF NOT EXISTS 'admin_app'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_PASSWORD_ADMIN_APP__';
+GRANT ALL PRIVILEGES ON *.* TO 'admin_app'@'%' WITH GRANT OPTION;
+
+-- Abogado
+CREATE USER IF NOT EXISTS 'abogado_app'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_PASSWORD_ABOGADO_APP__';
+GRANT SELECT, INSERT, UPDATE ON `__MYSQL_DATABASE__`.* TO 'abogado_app'@'%';
+GRANT SELECT, INSERT ON `__MYSQL_DATABASE__`.Movimiento TO 'abogado_app'@'%';
+GRANT SELECT ON `__MYSQL_DATABASE__`.Tribunal TO 'abogado_app'@'%';
+GRANT SELECT ON `__MYSQL_DATABASE__`.Usuario TO 'abogado_app'@'%';
+GRANT SELECT, INSERT ON `__MYSQL_DATABASE__`.LogAccion TO 'abogado_app'@'%';
+
+-- Asistente
+CREATE USER IF NOT EXISTS 'asistente_app'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_PASSWORD_ASISTENTE_APP__';
+GRANT SELECT ON `__MYSQL_DATABASE__`.* TO 'asistente_app'@'%';
+GRANT INSERT ON `__MYSQL_DATABASE__`.Movimiento TO 'asistente_app'@'%';
+GRANT INSERT ON `__MYSQL_DATABASE__`.Documento TO 'asistente_app'@'%';
+GRANT INSERT ON `__MYSQL_DATABASE__`.Notificacion TO 'asistente_app'@'%';
+GRANT INSERT ON `__MYSQL_DATABASE__`.LogAccion TO 'asistente_app'@'%';
+
+-- Sistemas
+CREATE USER IF NOT EXISTS 'sistemas_app'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_PASSWORD_SISTEMAS_APP__';
+GRANT SELECT ON `__MYSQL_DATABASE__`.* TO 'sistemas_app'@'%';
+GRANT INSERT, UPDATE ON `__MYSQL_DATABASE__`.LogAccion TO 'sistemas_app'@'%';
+
+-- Readonly
+CREATE USER IF NOT EXISTS 'readonly_app'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_PASSWORD_READONLY_APP__';
+GRANT SELECT ON `__MYSQL_DATABASE__`.* TO 'readonly_app'@'%';
+
+-- Replicación
+CREATE USER IF NOT EXISTS 'replicator'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_REPLICATION_PASSWORD__' REQUIRE SSL;
+GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'replicator'@'%';
+
+-- Monitor
+CREATE USER IF NOT EXISTS '__MYSQL_MONITOR_USER__'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_MONITOR_PASSWORD__';
+GRANT REPLICATION CLIENT, SELECT ON *.* TO '__MYSQL_MONITOR_USER__'@'%';
+GRANT SELECT ON `__MYSQL_DATABASE__`.* TO '__MYSQL_MONITOR_USER__'@'%';
+
+-- App User
+CREATE USER IF NOT EXISTS 'appuser'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_PASSWORD__';
+GRANT ALL PRIVILEGES ON `__MYSQL_DATABASE__`.* TO 'appuser'@'%';
+
+FLUSH PRIVILEGES;

@@ -24,17 +24,17 @@ services:
 
   db-master:
     build:
-      context: ./db
+      context: ./db/master
     container_name: db-master
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-causas_judiciales_db}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-gestion_causas}
       MYSQL_USER: ${MYSQL_USER:-appuser}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
     command:
       - --server-id=1
       - --log-bin=mysql-bin
-      - --binlog-do-db=${MYSQL_DATABASE:-appdb}
+      - --binlog-do-db=${MYSQL_DATABASE:-gestion_causas}
       - --gtid-mode=ON
       - --enforce-gtid-consistency=ON
       - --ssl-ca=/etc/mysql/certs/ca.pem
@@ -42,7 +42,7 @@ services:
       - --ssl-key=/etc/mysql/certs/server-key.pem
     volumes:
       - mysql-master-data:/var/lib/mysql
-      - ./db/mysql:/docker-entrypoint-initdb.d:ro
+      - ./db/master/mysql:/docker-entrypoint-initdb.d:ro
       - ./db/certs:/etc/mysql/certs:ro
     ports:
       - "3307:3306"
@@ -57,16 +57,22 @@ services:
       start_period: 120s
 
   db-proxy:
-    image: proxysql/proxysql:2.5.5
+    build:
+      context: ./db/proxy
     container_name: db-proxy
     environment:
       - MYSQL_MONITOR_USER=${MYSQL_MONITOR_USER:-monitor_user}
       - MYSQL_MONITOR_PASSWORD=${MYSQL_MONITOR_PASSWORD:-***REMOVED***}
+      - MYSQL_MASTER_HOST=${MYSQL_MASTER_HOST:-db-master}
+      - MYSQL_SLAVE_HOST=${MYSQL_SLAVE_HOST:-db-slave}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-gestion_causas}
+      - MYSQL_USER=${MYSQL_USER:-appuser}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-password}
     ports:
       - "6033:6033" # MySQL traffic
       - "6032:6032" # Admin interface
     volumes:
-      - ./proxy/proxysql.cnf:/etc/proxysql.cnf:ro
+      - proxysql-config:/etc/proxysql
     networks:
       - backend-network
       - database-network
@@ -75,11 +81,11 @@ services:
       db-master:
         condition: service_healthy
       db-slave:
-        condition: service_started # Slave doesn't have a healthcheck, so we wait for it to start
+        condition: service_started
 
   db-slave:
     build:
-      context: ./db
+      context: ./db/slave
     container_name: db-slave
     depends_on:
       db-master:
@@ -87,9 +93,10 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_MASTER_HOST: db-master
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-appdb}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-gestion_causas}
       MYSQL_USER: ${MYSQL_USER:-appuser}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
+      MYSQL_REPLICATION_PASSWORD: ${MYSQL_REPLICATION_PASSWORD:-replication_pass}
     command:
       - --server-id=2
       - --relay-log=mysql-relay-bin
@@ -103,7 +110,7 @@ services:
     volumes:
       - mysql-slave-data:/var/lib/mysql
       - ./db/certs:/etc/mysql/certs:ro
-      - ./db/init-slave.sh:/docker-entrypoint-initdb.d/init-slave.sh:ro
+      - ./db/slave/init-slave.sh:/docker-entrypoint-initdb.d/init-slave.sh:ro
     ports:
       - "3308:3306"
     networks:
@@ -441,3 +448,4 @@ volumes:
   prometheus-data:
   grafana-data:
   frontend-node-modules:
+  proxysql-config:

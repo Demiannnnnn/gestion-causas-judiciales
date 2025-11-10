@@ -1,0 +1,443 @@
+
+services:
+  #router
+  gateway:
+    image: traefik:v2.10  
+    container_name: gateway    
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--serversTransport.forwardingTimeouts.dialTimeout=30s"
+      - "--serversTransport.forwardingTimeouts.responseHeaderTimeout=30s"
+      - "--serversTransport.forwardingTimeouts.idleConnTimeout=30s"
+    ports:
+      - "8081:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - frontend-network
+      - backend-network
+    restart: unless-stopped
+
+  db-master:
+    build:
+      context: ./db
+    container_name: db-master
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-causas_judiciales_db}
+      MYSQL_USER: ${MYSQL_USER:-appuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
+    command:
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-do-db=${MYSQL_DATABASE:-appdb}
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --ssl-ca=/etc/mysql/certs/ca.pem
+      - --ssl-cert=/etc/mysql/certs/server-cert.pem
+      - --ssl-key=/etc/mysql/certs/server-key.pem
+    volumes:
+      - mysql-master-data:/var/lib/mysql
+      - ./db/mysql:/docker-entrypoint-initdb.d:ro
+      - ./db/certs:/etc/mysql/certs:ro
+    ports:
+      - "3307:3306"
+    networks:
+      - database-network
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s    
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  db-proxy:
+    image: proxysql/proxysql:2.5.5
+    container_name: db-proxy
+    environment:
+      - MYSQL_MONITOR_USER=${MYSQL_MONITOR_USER:-monitor_user}
+      - MYSQL_MONITOR_PASSWORD=${MYSQL_MONITOR_PASSWORD:-***REMOVED***}
+    ports:
+      - "6033:6033" # MySQL traffic
+      - "6032:6032" # Admin interface
+    volumes:
+      - ./proxy/proxysql.cnf:/etc/proxysql.cnf:ro
+    networks:
+      - backend-network
+      - database-network
+    restart: always
+    depends_on:
+      db-master:
+        condition: service_healthy
+      db-slave:
+        condition: service_started # Slave doesn't have a healthcheck, so we wait for it to start
+
+  db-slave:
+    build:
+      context: ./db
+    container_name: db-slave
+    depends_on:
+      db-master:
+        condition: service_healthy
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_MASTER_HOST: db-master
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-appdb}
+      MYSQL_USER: ${MYSQL_USER:-appuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
+    command:
+      - --server-id=2
+      - --relay-log=mysql-relay-bin
+      - --log-slave-updates=ON
+      - --read-only=ON
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --ssl-ca=/etc/mysql/certs/ca.pem
+      - --ssl-cert=/etc/mysql/certs/client-cert.pem
+      - --ssl-key=/etc/mysql/certs/client-key.pem
+    volumes:
+      - mysql-slave-data:/var/lib/mysql
+      - ./db/certs:/etc/mysql/certs:ro
+      - ./db/init-slave.sh:/docker-entrypoint-initdb.d/init-slave.sh:ro
+    ports:
+      - "3308:3306"
+    networks:
+      - database-network
+    restart: always
+
+  redis:
+    image: redis:7-alpine    
+    container_name: redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - cache-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis-replica:
+    image: redis:7-alpine
+    container_name: redis-replica
+    command: redis-server --appendonly yes --replicaof redis 6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "6380:6379"
+    networks:
+      - cache-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  autenticacion:
+    build:
+      context: ./backend/autenticacion
+    container_name: autenticacion
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development 
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    volumes:
+      - ./backend/autenticacion/app:/app
+      - ./backend/common:/app/common
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`)"
+      - "traefik.http.routers.auth.priority=100"
+      - "traefik.http.middlewares.auth-strip.stripprefix.prefixes=/api/auth"
+      - "traefik.http.routers.auth.middlewares=auth-strip"      
+      - "traefik.http.services.auth.loadbalancer.server.port=8000"
+    networks:
+      - backend-network
+      - database-network
+      - cache-network
+    restart: unless-stopped
+    depends_on:
+      db-master:
+        condition: service_started
+
+  casos:
+    build:
+      context: ./backend/casos
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - SECRET_KEY=${CASOS_SECRET_KEY}
+      - REDIS_URL=redis://redis:6379/1
+    volumes:
+      - ./backend/casos/app:/app
+      - ./backend/common:/app/common
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.casos.rule=PathPrefix(`/api/casos`)"
+      - "traefik.http.routers.casos.priority=100"
+      - "traefik.http.middlewares.casos-strip.stripprefix.prefixes=/api/casos"
+      - "traefik.http.routers.casos.middlewares=casos-strip"
+      - "traefik.http.services.casos.loadbalancer.server.port=5001"
+    networks:
+      - backend-network
+      - database-network
+      - cache-network
+    restart: unless-stopped
+    depends_on:
+      db-master:
+        condition: service_started
+    deploy:
+      replicas: 2
+
+  documentos:
+    build:
+      context: ./backend/documentos
+    container_name: documentos
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - UPLOAD_FOLDER=/app/uploads
+    volumes:
+      - ./backend/documentos/app:/app
+      - ./backend/common:/app/common
+      - documentos-uploads:/app/uploads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docs.rule=PathPrefix(`/api/documentos`)"
+      - "traefik.http.routers.docs.priority=100"
+      - "traefik.http.middlewares.docs-strip.stripprefix.prefixes=/api/documentos"
+      - "traefik.http.routers.docs.middlewares=docs-strip"
+      - "traefik.http.services.docs.loadbalancer.server.port=8002"
+    networks:
+      - backend-network
+      - database-network
+    restart: unless-stopped
+    depends_on:
+      db-master:
+        condition: service_started
+
+  notificaciones:
+    build:
+      context: ./backend/notificaciones
+    container_name: notificaciones
+    command: sh -c "gunicorn --bind 0.0.0.0:8003 app:app & python worker.py"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - REDIS_URL=redis://redis:6379/2
+      - MAIL_SERVER=${MAIL_SERVER:-mailhog}
+      - MAIL_PORT=${MAIL_PORT:-1025}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+    volumes:
+      - ./backend/notificaciones/app:/app
+      - ./backend/common:/app/common
+    networks:
+      - backend-network
+      - database-network
+      - cache-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.notificaciones.rule=PathPrefix(`/api/notificaciones`)"
+      - "traefik.http.routers.notificaciones.priority=100"
+      - "traefik.http.middlewares.notificaciones-strip.stripprefix.prefixes=/api/notificaciones"
+      - "traefik.http.routers.notificaciones.middlewares=notificaciones-strip"
+      - "traefik.http.services.notificaciones.loadbalancer.server.port=8003"
+    depends_on:
+      db-master:
+        condition: service_started
+
+  reportes:
+    build:
+      context: ./backend/reportes
+    container_name: reportes
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+    volumes:
+      - ./backend/reportes/app:/app
+      - ./backend/common:/app/common
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.reportes.rule=PathPrefix(`/api/reportes`)"
+      - "traefik.http.routers.reportes.priority=100"
+      - "traefik.http.middlewares.reportes-strip.stripprefix.prefixes=/api/reportes"
+      - "traefik.http.routers.reportes.middlewares=reportes-strip"
+      - "traefik.http.services.reportes.loadbalancer.server.port=8004"
+    networks:
+      - backend-network
+      - database-network
+
+  ia-seguridad:
+    build:
+      context: ./backend/ia-seguridad
+    container_name: ia-seguridad
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
+    volumes:
+      - ./backend/ia-seguridad/app:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ia-seguridad.rule=PathPrefix(`/api/ia-seguridad`)"
+      - "traefik.http.routers.ia-seguridad.priority=100"
+      - "traefik.http.middlewares.ia-seguridad-strip.stripprefix.prefixes=/api/ia-seguridad"
+      - "traefik.http.routers.ia-seguridad.middlewares=ia-seguridad-strip"
+      - "traefik.http.services.ia-seguridad.loadbalancer.server.port=8005"
+    networks:
+      - backend-network
+      - monitoring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`causas-judiciales.local`) || Host(`localhost`)"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - HOST=0.0.0.0
+    stdin_open: true
+    tty: true
+    depends_on:
+      - reportes
+    networks:
+      - frontend-network
+    restart: unless-stopped
+
+    deploy:
+      replicas: 2
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus_main.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - backend-network
+
+  backup-service:
+    build:
+      context: ./backup-service
+    container_name: backup-service
+    environment:
+      - MYSQL_HOST=db-master
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-***REMOVED***}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-causas_judiciales_db}
+      - BACKUP_RETENTION_DAYS=7
+    volumes:
+      - ./backups:/backups
+      - documentos-uploads:/data/documentos:ro
+    networks:
+      - database-network
+      - monitoring-network
+    depends_on:
+      - db-master
+    restart: unless-stopped
+
+networks:
+  frontend-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  
+  backend-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+  
+  database-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/24
+  
+  cache-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/24
+  
+  monitoring-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.24.0.0/24
+
+volumes:
+  mysql-master-data:
+  mysql-slave-data:
+  redis-data:
+  documentos-uploads:
+  prometheus-data:
+  grafana-data:
+  frontend-node-modules:
