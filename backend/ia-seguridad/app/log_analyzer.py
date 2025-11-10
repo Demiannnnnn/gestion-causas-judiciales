@@ -14,11 +14,12 @@ class LogAnalyzer:
     def __init__(self):
         self.docker_client = docker.from_env()
         
-        # Configurar Gemini
+                # Configurar Gemini
         gemini_api_key = os.getenv('GEMINI_API_KEY')
         if gemini_api_key:
             genai.configure(api_key=gemini_api_key)
-            self.gemini_model = genai.GenerativeModel('gemini-pro')
+            # Usar gemini-2.5-flash que es el modelo más reciente y rápido
+            self.gemini_model = genai.GenerativeModel('models/gemini-2.5-flash')
         else:
             self.gemini_model = None
             logger.warning("GEMINI_API_KEY no configurada")
