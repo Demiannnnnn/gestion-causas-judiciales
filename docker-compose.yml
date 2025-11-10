@@ -271,6 +271,35 @@ services:
     networks:
       - app-network
 
+  ia-seguridad:
+    build:
+      context: ./backend/ia-seguridad
+    container_name: ia-seguridad
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
+    volumes:
+      - ./backend/ia-seguridad/app:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ia-seguridad.rule=PathPrefix(`/api/ia-seguridad`)"
+      - "traefik.http.middlewares.ia-seguridad-strip.stripprefix.prefixes=/api/ia-seguridad"
+      - "traefik.http.routers.ia-seguridad.middlewares=ia-seguridad-strip"
+      - "traefik.http.services.ia-seguridad.loadbalancer.server.port=8005"
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   frontend:
     build:
       context: ./frontend

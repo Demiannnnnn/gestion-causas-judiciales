@@ -1,0 +1,38 @@
+.ia-seguridad-container {
+  padding: 20px;
+}
+
+.analysis-content pre {
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.card {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.card-header {
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+.table-responsive {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.badge {
+  padding: 0.4em 0.6em;
+  font-size: 0.85em;
+}
+
+.list-group-item {
+  border-left: 4px solid #dee2e6;
+}
+
+.list-group-item:hover {
+  background-color: #f8f9fa;
+}

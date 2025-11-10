@@ -33,6 +33,9 @@ const Layout = ({ children }) => {
               <li className="nav-item">
                 <Link className="nav-link" to="/reportes">Reportes</Link>
               </li>
+              <li className="nav-item">
+                <Link className="nav-link" to="/ia-seguridad">🤖 IA Seguridad</Link>
+              </li>
             </ul>
             <div className="d-flex">
               {isLoggedIn ? (
