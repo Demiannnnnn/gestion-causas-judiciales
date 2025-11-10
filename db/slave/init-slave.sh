@@ -8,7 +8,7 @@ mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<-EOSQL
     CHANGE REPLICATION SOURCE TO
         SOURCE_HOST='db-master',
         SOURCE_USER='replicator',
-        SOURCE_PASSWORD='repl_password',
+        SOURCE_PASSWORD='${MYSQL_REPLICATION_PASSWORD}',
         SOURCE_SSL=1,
         SOURCE_AUTO_POSITION=1;
     START REPLICA;

@@ -1,0 +1,52 @@
+global:
+  scrape_interval: __SCRAPE_INTERVAL__
+  evaluation_interval: __EVALUATION_INTERVAL__
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:8080']
+
+  - job_name: 'autenticacion'
+    static_configs:
+      - targets: ['autenticacion:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'casos'
+    static_configs:
+      - targets: ['casos:5001']
+    metrics_path: '/metrics'
+
+  - job_name: 'documentos'
+    static_configs:
+      - targets: ['documentos:8002']
+    metrics_path: '/metrics'
+
+  - job_name: 'notificaciones'
+    static_configs:
+      - targets: ['notificaciones:8003']
+    metrics_path: '/metrics'
+
+  - job_name: 'mysql-master'
+    static_configs:
+      - targets: ['db-master:3306']
+
+  - job_name: 'mysql-slave'
+    static_configs:
+      - targets: ['db-slave:3306']
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+
+  - job_name: 'redis-replica'
+    static_configs:
+      - targets: ['redis-replica:6379']
+
+  - job_name: 'proxysql'
+    static_configs:
+      - targets: ['db-proxy:6032']

@@ -12,7 +12,7 @@ PROXYSQL_CONTAINER="${PROXYSQL_CONTAINER:-db-proxy}"
 ORIGINAL_MASTER="${ORIGINAL_MASTER:-db-master}"
 CURRENT_MASTER="${CURRENT_MASTER:-db-slave}"
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-***REMOVED***}"
-MYSQL_REPLICATION_USER="${MYSQL_REPLICATION_USER:-***REMOVED***}"
+MYSQL_REPLICATION_USER="${MYSQL_REPLICATION_USER:-replicator}"
 MYSQL_REPLICATION_PASSWORD="${MYSQL_REPLICATION_PASSWORD:-***REMOVED***}"
 
 echo "Verificando estado actual de ProxySQL..."
@@ -23,11 +23,16 @@ ORDER BY hostgroup_id, hostname;
 "
 
 echo ""
-read -p "¿Confirmas failback de '$ORIGINAL_MASTER' como nuevo master? [y/N] " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Cancelado por usuario."
-    exit 1
+# Permitir modo automático con flag -y
+if [[ "$1" != "-y" ]]; then
+    read -p "¿Confirmas failback de '$ORIGINAL_MASTER' como nuevo master? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Cancelado por usuario."
+        exit 1
+    fi
+else
+    echo "Modo automático: procediendo sin confirmación"
 fi
 
 echo ""
@@ -36,21 +41,21 @@ echo "Paso 1: Reconfigurando $ORIGINAL_MASTER como slave del master actual..."
 GTID_EXECUTED=$(docker exec $CURRENT_MASTER mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -NB -e "SELECT @@GLOBAL.gtid_executed;" 2>/dev/null)
 
 docker exec $ORIGINAL_MASTER mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "
-STOP SLAVE;
-RESET SLAVE ALL;
+STOP REPLICA;
+RESET REPLICA ALL;
 SET GLOBAL read_only=1;
 SET GLOBAL super_read_only=1;
 
-CHANGE MASTER TO
-    MASTER_HOST='$CURRENT_MASTER',
-    MASTER_PORT=3306,
-    MASTER_USER='$MYSQL_REPLICATION_USER',
-    MASTER_PASSWORD='$MYSQL_REPLICATION_PASSWORD',
-    MASTER_AUTO_POSITION=1,
-    MASTER_SSL=1;
+CHANGE REPLICATION SOURCE TO
+    SOURCE_HOST='$CURRENT_MASTER',
+    SOURCE_PORT=3306,
+    SOURCE_USER='$MYSQL_REPLICATION_USER',
+    SOURCE_PASSWORD='$MYSQL_REPLICATION_PASSWORD',
+    SOURCE_AUTO_POSITION=1,
+    SOURCE_SSL=1;
 
-START SLAVE;
-SHOW SLAVE STATUS\G
+START REPLICA;
+SHOW REPLICA STATUS\G
 "
 
 echo ""
@@ -60,27 +65,31 @@ sleep 30
 echo ""
 echo "Paso 2: Verificando replicación..."
 SLAVE_STATUS=$(docker exec $ORIGINAL_MASTER mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -NB -e "
-SELECT CONCAT('IO:', Slave_IO_Running, ' SQL:', Slave_SQL_Running, ' Lag:', Seconds_Behind_Master) 
+SELECT CONCAT('IO:', SERVICE_STATE, ' SQL:', LAST_ERROR_MESSAGE) 
 FROM performance_schema.replication_connection_status 
-JOIN performance_schema.replication_applier_status_by_worker 
 LIMIT 1;
 " 2>/dev/null || echo "ERROR")
 
 echo "Estado de replicación: $SLAVE_STATUS"
 
-if [[ $SLAVE_STATUS == *"IO:Yes SQL:Yes"* ]]; then
+if [[ $SLAVE_STATUS == *"IO:ON"* ]]; then
     echo "✅ Replicación activa"
 else
-    echo "❌ Replicación con problemas. Revisa: docker exec $ORIGINAL_MASTER mysql -uroot -p... -e 'SHOW SLAVE STATUS\G'"
+    echo "❌ Replicación con problemas. Revisa: docker exec $ORIGINAL_MASTER mysql -uroot -p... -e 'SHOW REPLICA STATUS\G'"
     exit 1
 fi
 
 echo ""
-read -p "¿Proceder con switchover (promover $ORIGINAL_MASTER a master)? [y/N] " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Failback parcial completado. $ORIGINAL_MASTER está como slave."
-    exit 0
+# Permitir modo automático con flag -y
+if [[ "$1" != "-y" ]]; then
+    read -p "¿Proceder con switchover (promover $ORIGINAL_MASTER a master)? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Failback parcial completado. $ORIGINAL_MASTER está como slave."
+        exit 0
+    fi
+else
+    echo "Modo automático: procediendo con switchover"
 fi
 
 echo ""
@@ -96,12 +105,12 @@ sleep 5
 echo ""
 echo "Paso 4: Promoviendo $ORIGINAL_MASTER a master..."
 docker exec $ORIGINAL_MASTER mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "
-STOP SLAVE;
-RESET SLAVE ALL;
+STOP REPLICA;
+RESET REPLICA ALL;
 SET GLOBAL read_only=0;
 SET GLOBAL super_read_only=0;
-SHOW MASTER STATUS\G
-"
+" 2>/dev/null
+docker exec $ORIGINAL_MASTER mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SHOW MASTER STATUS\G" 2>/dev/null || echo "✓ Master promovido"
 
 echo ""
 echo "Paso 5: Reconfigurando $CURRENT_MASTER como slave de $ORIGINAL_MASTER..."
@@ -109,19 +118,19 @@ GTID_NEW=$(docker exec $ORIGINAL_MASTER mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N
 
 docker exec $CURRENT_MASTER mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "
 UNLOCK TABLES;
-STOP SLAVE;
-RESET SLAVE ALL;
+STOP REPLICA;
+RESET REPLICA ALL;
 
-CHANGE MASTER TO
-    MASTER_HOST='$ORIGINAL_MASTER',
-    MASTER_PORT=3306,
-    MASTER_USER='$MYSQL_REPLICATION_USER',
-    MASTER_PASSWORD='$MYSQL_REPLICATION_PASSWORD',
-    MASTER_AUTO_POSITION=1,
-    MASTER_SSL=1;
+CHANGE REPLICATION SOURCE TO
+    SOURCE_HOST='$ORIGINAL_MASTER',
+    SOURCE_PORT=3306,
+    SOURCE_USER='$MYSQL_REPLICATION_USER',
+    SOURCE_PASSWORD='$MYSQL_REPLICATION_PASSWORD',
+    SOURCE_AUTO_POSITION=1,
+    SOURCE_SSL=1;
 
-START SLAVE;
-SHOW SLAVE STATUS\G
+START REPLICA;
+SHOW REPLICA STATUS\G
 "
 
 echo ""
@@ -154,6 +163,6 @@ echo "   - Slave: $CURRENT_MASTER (hostgroup 20)"
 echo ""
 echo "⚠️  Verificar:"
 echo "   1. Conectividad de aplicaciones"
-echo "   2. Replicación: docker exec $CURRENT_MASTER mysql -uroot -p... -e 'SHOW SLAVE STATUS\G'"
+echo "   2. Replicación: docker exec $CURRENT_MASTER mysql -uroot -p... -e 'SHOW REPLICA STATUS\G'"
 echo "   3. Logs ProxySQL: docker logs -f $PROXYSQL_CONTAINER"
 echo "=========================================="

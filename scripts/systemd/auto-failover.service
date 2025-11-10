@@ -1,0 +1,17 @@
+[Unit]
+Description=MySQL Auto-Failover Daemon
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/lambda/Trabajos_UwU/admin/proy2
+ExecStart=/bin/bash /home/lambda/Trabajos_UwU/admin/proy2/scripts/auto-failover-host.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
