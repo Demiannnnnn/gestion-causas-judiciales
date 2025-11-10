@@ -9,7 +9,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from common.database import db_manager
-from common.models import Notificacion, Usuario
+from common.models import Notificacion, Usuario, Movimiento, Causa, CausaParte
 
 app = Flask(__name__)
 CORS(app)
@@ -201,6 +201,7 @@ def crear_notificaciones_vencimiento():
                             session.add(nueva_notificacion)
                             print(f"Notificación de vencimiento creada para {usuario.correo} en causa {causa.rit}")
         
+        session.commit()
         return jsonify({"message": f"Se crearon notificaciones para {len(vencimientos)} vencimientos."}), 200
 
 
