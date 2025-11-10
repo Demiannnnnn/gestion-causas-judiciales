@@ -161,5 +161,51 @@ def get_caso_movimientos(id):
         } for m in caso.movimientos]
         return jsonify(movimientos_data)
 
+# Endpoint para crear un nuevo movimiento en un caso
+@app.route('/<int:id>/movimientos', methods=['POST'])
+def create_movimiento(id):
+    with db_manager.get_session() as session:
+        caso = session.query(Causa).filter(Causa.id_causa == id).first()
+        if not caso:
+            return jsonify({'error': 'Caso no encontrado'}), 404
+        
+        data = request.json
+        
+        # Parsear fecha si viene como string
+        fecha = data.get('fecha')
+        if fecha and isinstance(fecha, str):
+            try:
+                fecha = datetime.datetime.strptime(fecha, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Formato de fecha inválido. Usar YYYY-MM-DD'}), 400
+        
+        nuevo_movimiento = Movimiento(
+            id_causa=id,
+            fecha=fecha,
+            descripcion=data['descripcion'],
+            tipo=data['tipo']
+        )
+        
+        session.add(nuevo_movimiento)
+        session.flush()
+        
+        # Enviar notificación
+        send_notification({
+            "tipo": "movimiento",
+            "caso_rit": caso.rit,
+            "destinatario": "admin@judicial.cl", # Asignar a un usuario específico o obtenerlo de la sesión
+            "asunto": f"Nuevo Movimiento en Caso: {caso.rit}",
+            "mensaje": f"Se ha añadido un nuevo movimiento de tipo '{data['tipo']}' en la causa con RIT {caso.rit}."
+        })
+        
+        # Si el movimiento es de tipo 'VENCIMIENTO', llamar al endpoint de notificaciones de vencimiento
+        if data['tipo'] == 'VENCIMIENTO':
+            try:
+                requests.post("http://notificaciones:8003/vencimientos")
+            except Exception as e:
+                print(f"Error calling vencimientos endpoint: {e}")
+        
+        return jsonify({'id_movimiento': nuevo_movimiento.id_movimiento}), 201
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)

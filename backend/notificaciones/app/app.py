@@ -146,6 +146,103 @@ def send_notification():
 # ==================== GESTIÓN DE NOTIFICACIONES ====================
 
 
+@app.route("/vencimientos", methods=["POST"])
+def crear_notificaciones_vencimiento():
+    """
+    Busca vencimientos próximos y crea notificaciones para los usuarios asociados.
+    """
+    print("--- Ejecutando crear_notificaciones_vencimiento ---")
+    with db_manager.get_session() as session:
+        today = datetime.now().date()
+        deadline_date = today + timedelta(days=7)
+
+        # Buscar movimientos de tipo 'VENCIMIENTO' en el rango de fechas
+        vencimientos = session.query(Movimiento).filter(
+            Movimiento.tipo == 'VENCIMIENTO',
+            Movimiento.fecha >= today,
+            Movimiento.fecha <= deadline_date
+        ).all()
+
+        if not vencimientos:
+            print("No se encontraron vencimientos próximos.")
+            return jsonify({"message": "No se encontraron vencimientos próximos."}), 200
+
+        print(f"Se encontraron {len(vencimientos)} vencimientos próximos.")
+
+        for vencimiento in vencimientos:
+            causa = session.get(Causa, vencimiento.id_causa)
+            if not causa:
+                continue
+
+            # Encontrar los usuarios asociados a la causa (abogados representantes)
+            causa_partes = session.query(CausaParte).filter_by(id_causa=causa.id_causa).all()
+            for cp in causa_partes:
+                if cp.representado_por:
+                    usuario = session.get(Usuario, cp.representado_por)
+                    if usuario:
+                        # Verificar si ya existe una notificación para este vencimiento y usuario
+                        notif_existente = session.query(Notificacion).filter_by(
+                            id_usuario=usuario.id_usuario,
+                            caso_rit=causa.rit,
+                            tipo='VENCIMIENTO',
+                            mensaje=f"El plazo para '{vencimiento.descripcion}' en la causa {causa.rit} vence el {vencimiento.fecha.strftime('%Y-%m-%d')}."
+                        ).first()
+
+                        if not notif_existente:
+                            nueva_notificacion = Notificacion(
+                                id_usuario=usuario.id_usuario,
+                                tipo='VENCIMIENTO',
+                                destinatario=usuario.correo,
+                                asunto=f"Alerta de Vencimiento: Causa {causa.rit}",
+                                mensaje=f"El plazo para '{vencimiento.descripcion}' en la causa {causa.rit} vence el {vencimiento.fecha.strftime('%Y-%m-%d')}.",
+                                caso_rit=causa.rit,
+                                estado='PENDIENTE'
+                            )
+                            session.add(nueva_notificacion)
+                            print(f"Notificación de vencimiento creada para {usuario.correo} en causa {causa.rit}")
+        
+        return jsonify({"message": f"Se crearon notificaciones para {len(vencimientos)} vencimientos."}), 200
+
+
+@app.route("/resumen-diario", methods=["POST"])
+def generar_resumen_diario():
+    """
+    Genera y envía un resumen diario de notificaciones no leídas a cada usuario.
+    """
+    print("--- Ejecutando generar_resumen_diario ---")
+    with db_manager.get_session() as session:
+        usuarios = session.query(Usuario).all()
+
+        for usuario in usuarios:
+            notificaciones_no_leidas = session.query(Notificacion).filter_by(
+                id_usuario=usuario.id_usuario,
+                leido=False
+            ).all()
+
+            if not notificaciones_no_leidas:
+                continue
+
+            print(f"Generando resumen para {usuario.correo} con {len(notificaciones_no_leidas)} notificaciones no leídas.")
+
+            # Construir el cuerpo del email
+            cuerpo_html = "<h1>Resumen Diario de Notificaciones</h1>"
+            cuerpo_html += f"<p>Hola {usuario.nombre}, aquí tienes un resumen de tus notificaciones no leídas:</p>"
+            cuerpo_html += "<ul>"
+            for notif in notificaciones_no_leidas:
+                cuerpo_html += f"<li><b>{notif.asunto}</b>: {notif.mensaje} <i>(Recibido: {notif.fecha_envio.strftime('%Y-%m-%d %H:%M')})</i></li>"
+            cuerpo_html += "</ul>"
+            cuerpo_html += "<p>Puedes ver más detalles en el sistema.</p>"
+
+            asunto = "Resumen Diario de Notificaciones"
+            if enviar_email(usuario.correo, asunto, cuerpo_html, html=True):
+                # Marcar notificaciones como leídas para no volver a enviarlas en el resumen
+                for notif in notificaciones_no_leidas:
+                    notif.leido = True
+                print(f"Resumen diario enviado a {usuario.correo}")
+
+    return jsonify({"message": "Resumen diario generado y enviado."}), 200
+
+
 @app.route("/", methods=["GET"])
 def get_notificaciones():
     """

@@ -178,6 +178,7 @@ services:
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - SECRET_KEY=${CASOS_SECRET_KEY}
       - REDIS_URL=redis://redis:6379/1
+    command: flask run --host=0.0.0.0 --port=5001 --debug
     volumes:
       - ./backend/casos/app:/app
       - ./backend/common:/app/common
@@ -226,7 +227,7 @@ services:
     build:
       context: ./backend/notificaciones
     container_name: notificaciones
-    command: sh -c "gunicorn --bind 0.0.0.0:8003 app:app & python worker.py"
+    command: sh -c "flask run --host=0.0.0.0 --port=8003"
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
@@ -352,6 +353,16 @@ services:
       - app-network
     depends_on:
       - db-master
+    restart: unless-stopped
+
+  cron:
+    build:
+      context: ./cron
+    container_name: cron
+    networks:
+      - app-network
+    depends_on:
+      - notificaciones
     restart: unless-stopped
 
 networks:
