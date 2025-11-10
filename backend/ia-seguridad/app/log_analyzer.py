@@ -29,11 +29,10 @@ class LogAnalyzer:
         try:
             container = self.docker_client.containers.get(container_name)
             
-            # Convertir 'since' a segundos
-            since_seconds = self._parse_time_string(since)
-            
+            # Obtener los últimos logs (tail) en lugar de usar since
+            # Esto asegura que siempre obtengamos logs incluso si el contenedor lleva tiempo sin actividad
             logs = container.logs(
-                since=datetime.now() - timedelta(seconds=since_seconds),
+                tail=1000,  # Últimas 1000 líneas
                 timestamps=True
             ).decode('utf-8', errors='ignore')
             
