@@ -1,5 +1,67 @@
-
 services:
+  # Config initializers using Alpine
+  config-init-prometheus:
+    image: alpine:latest
+    container_name: config-init-prometheus
+    env_file: .env
+    environment:
+      - SCRAPE_INTERVAL=${PROMETHEUS_SCRAPE_INTERVAL:-15s}
+      - EVALUATION_INTERVAL=${PROMETHEUS_EVALUATION_INTERVAL:-15s}
+    volumes:
+      - ./scripts/config-templates/prometheus:/templates:ro
+      - ./scripts/init-prometheus.sh:/init.sh:ro
+      - prometheus-config:/config
+    command: sh /init.sh
+
+  config-init-traefik:
+    image: alpine:latest
+    container_name: config-init-traefik
+    env_file: .env
+    environment:
+      - API_INSECURE=${TRAEFIK_API_INSECURE:-true}
+      - DASHBOARD_ENABLED=${TRAEFIK_DASHBOARD_ENABLED:-true}
+      - NETWORK_NAME=app-network
+      - LOG_LEVEL=${TRAEFIK_LOG_LEVEL:-INFO}
+    volumes:
+      - ./scripts/config-templates/traefik:/templates:ro
+      - ./scripts/init-traefik.sh:/init.sh:ro
+      - traefik-config:/config
+    command: sh /init.sh
+
+  config-init-proxysql:
+    image: alpine:latest
+    container_name: config-init-proxysql
+    env_file: .env
+    environment:
+      - PROXYSQL_ADMIN_USER=${PROXYSQL_ADMIN_USER:-admin}
+      - PROXYSQL_ADMIN_PASSWORD=${PROXYSQL_ADMIN_PASSWORD:-admin}
+      - MYSQL_MONITOR_USER=${MYSQL_MONITOR_USER}
+      - MYSQL_MONITOR_PASSWORD=${MYSQL_MONITOR_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_MASTER_HOST=${MYSQL_MASTER_HOST:-db-master}
+      - MYSQL_SLAVE_HOST=${MYSQL_SLAVE_HOST:-db-slave}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - ./scripts/config-templates/proxysql:/templates:ro
+      - ./scripts/init-proxysql.sh:/init.sh:ro
+      - proxysql-config:/config
+    command: sh /init.sh
+
+  config-init-redis:
+    image: alpine:latest
+    container_name: config-init-redis
+    env_file: .env
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_MAX_MEMORY=${REDIS_MAX_MEMORY:-256mb}
+      - REDIS_DATABASES=${REDIS_DATABASES:-16}
+    volumes:
+      - ./scripts/config-templates/redis:/templates:ro
+      - ./scripts/init-redis.sh:/init.sh:ro
+      - redis-config:/config
+    command: sh /init.sh
+
   #router
   gateway:
     image: traefik:v2.10  
@@ -9,9 +71,6 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
-      - "--serversTransport.forwardingTimeouts.dialTimeout=30s"
-      - "--serversTransport.forwardingTimeouts.responseHeaderTimeout=30s"
-      - "--serversTransport.forwardingTimeouts.idleConnTimeout=30s"
     ports:
       - "8081:80"
       - "8080:8080"
@@ -20,11 +79,55 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    depends_on:
+      config-init-traefik:
+        condition: service_completed_successfully
+
+  db-init:
+    image: alpine:latest
+    container_name: db-init
+    env_file: .env
+    command: sh -c "
+      apk add --no-cache sed &&
+      echo 'Copying MASTER scripts...' &&
+      cp /source-scripts-master/01-schema.sql /init-target-master/ &&
+      cp /source-scripts-master/02-grants.sql.template /init-target-master/ &&
+      cp /source-scripts-master/03-triggers.sql /init-target-master/ &&
+
+      echo 'Copying SLAVE scripts...' &&
+      cp /source-scripts-slave/init-slave.sh /init-target-slave/ &&
+      cp /source-scripts-slave/01-create-replication-user.sql.template /init-target-slave/ &&
+
+      echo 'Processing MASTER grants template...' &&
+      sed -e 's|__MYSQL_DATABASE__|${MYSQL_DATABASE}|g' \
+          -e 's|__MYSQL_MONITOR_PASSWORD__|${MYSQL_MONITOR_PASSWORD}|g' \
+          -e 's|__MYSQL_MONITOR_USER__|${MYSQL_MONITOR_USER}|g' \
+          -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
+          -e 's|__MYSQL_PASSWORD__|${MYSQL_PASSWORD}|g' \
+          -e 's|__MYSQL_PASSWORD_ADMIN_APP__|${MYSQL_PASSWORD_ADMIN_APP}|g' \
+          -e 's|__MYSQL_PASSWORD_ABOGADO_APP__|${MYSQL_PASSWORD_ABOGADO_APP}|g' \
+          -e 's|__MYSQL_PASSWORD_ASISTENTE_APP__|${MYSQL_PASSWORD_ASISTENTE_APP}|g' \
+          -e 's|__MYSQL_PASSWORD_SISTEMAS_APP__|${MYSQL_PASSWORD_SISTEMAS_APP}|g' \
+          -e 's|__MYSQL_PASSWORD_READONLY_APP__|${MYSQL_PASSWORD_READONLY_APP}|g' \
+          /init-target-master/02-grants.sql.template > /init-target-master/02-grants.sql &&
+
+      echo 'Processing SLAVE replication user template...' &&
+      sed -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
+          /init-target-slave/01-create-replication-user.sql.template > /init-target-slave/01-create-replication-user.sql &&
+
+      echo 'Initialization scripts ready.'
+      "
+    volumes:
+      - ./db/master/mysql:/source-scripts-master:ro
+      - ./db/slave:/source-scripts-slave:ro
+      - db-master-init-scripts:/init-target-master # Monta el volumen del master
+      - db-slave-init-scripts:/init-target-slave
 
   db-master:
     build:
-      context: ./db
+      context: ./db/master
     container_name: db-master
+    env_file: .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-causas_judiciales_db}
@@ -41,7 +144,7 @@ services:
       - --ssl-key=/etc/mysql/certs/server-key.pem
     volumes:
       - mysql-master-data:/var/lib/mysql
-      - ./db/mysql:/docker-entrypoint-initdb.d:ro
+      - db-master-init-scripts:/docker-entrypoint-initdb.d:ro # <- SOLO scripts del master
       - ./db/certs:/etc/mysql/certs:ro
     ports:
       - "3307:3306"
@@ -49,23 +152,26 @@ services:
       - app-network
     restart: always
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
       interval: 10s    
       timeout: 5s
       retries: 5
       start_period: 30s
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
 
   db-proxy:
-    image: proxysql/proxysql:2.5.5
+    build:
+      context: ./db/proxy
     container_name: db-proxy
-    environment:
-      - MYSQL_MONITOR_USER=${MYSQL_MONITOR_USER:-monitor_user}
-      - MYSQL_MONITOR_PASSWORD=${MYSQL_MONITOR_PASSWORD:-***REMOVED***}
+    env_file: .env
+    volumes:
+      - proxysql-config:/etc/proxysql:ro
+      - proxysql-data:/var/lib/proxysql
     ports:
       - "6033:6033" # MySQL traffic
       - "6032:6032" # Admin interface
-    volumes:
-      - ./proxy/proxysql.cnf:/etc/proxysql.cnf:ro
     networks:
       - app-network
     restart: always
@@ -73,15 +179,20 @@ services:
       db-master:
         condition: service_healthy
       db-slave:
-        condition: service_started # Slave doesn't have a healthcheck, so we wait for it to start
+        condition: service_started
+      config-init-proxysql:
+        condition: service_completed_successfully
 
   db-slave:
     build:
-      context: ./db
+      context: ./db/slave
     container_name: db-slave
     depends_on:
       db-master:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    env_file: .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_MASTER_HOST: db-master
@@ -100,8 +211,8 @@ services:
       - --ssl-key=/etc/mysql/certs/client-key.pem
     volumes:
       - mysql-slave-data:/var/lib/mysql
+      - db-slave-init-scripts:/docker-entrypoint-initdb.d:ro # <- SOLO script del slave
       - ./db/certs:/etc/mysql/certs:ro
-      - ./db/init-slave.sh:/docker-entrypoint-initdb.d/init-slave.sh:ro
     ports:
       - "3308:3306"
     networks:
@@ -111,34 +222,42 @@ services:
   redis:
     image: redis:7-alpine    
     container_name: redis
-    command: redis-server --appendonly yes
+    command: redis-server /config/redis.conf
     volumes:
       - redis-data:/data
+      - redis-config:/config:ro
     ports:
       - "6379:6379"
     networks:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
+    depends_on:
+      config-init-redis:
+        condition: service_completed_successfully
 
   redis-replica:
     image: redis:7-alpine
     container_name: redis-replica
-    command: redis-server --appendonly yes --replicaof redis 6379
+    command: redis-server /config/redis.conf --replicaof redis 6379
+    volumes:
+      - redis-config:/config:ro
     depends_on:
       redis:
         condition: service_healthy
+      config-init-redis:
+        condition: service_completed_successfully
     ports:
       - "6380:6379"
     networks:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -178,7 +297,6 @@ services:
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - SECRET_KEY=${CASOS_SECRET_KEY}
       - REDIS_URL=redis://redis:6379/1
-    command: flask run --host=0.0.0.0 --port=5001 --debug
     volumes:
       - ./backend/casos/app:/app
       - ./backend/common:/app/common
@@ -227,7 +345,7 @@ services:
     build:
       context: ./backend/notificaciones
     container_name: notificaciones
-    command: sh -c "flask run --host=0.0.0.0 --port=8003"
+    command: sh -c "gunicorn --bind 0.0.0.0:8003 app:app & python worker.py"
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
@@ -259,9 +377,9 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
     volumes:
-      - ./backend/reportes/app:/app
+      - ./backend/reportes:/app
       - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
@@ -269,8 +387,6 @@ services:
       - "traefik.http.middlewares.reportes-strip.stripprefix.prefixes=/api/reportes"
       - "traefik.http.routers.reportes.middlewares=reportes-strip"
       - "traefik.http.services.reportes.loadbalancer.server.port=8004"
-    networks:
-      - app-network
 
   frontend:
     build:
@@ -287,8 +403,6 @@ services:
       - HOST=0.0.0.0
     stdin_open: true
     tty: true
-    depends_on:
-      - reportes
     networks:
       - app-network
     restart: unless-stopped
@@ -300,7 +414,7 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     volumes:
-      - ./monitoring/prometheus/prometheus_main.yml:/etc/prometheus/prometheus.yml
+      - prometheus-config:/etc/prometheus:ro
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
@@ -310,6 +424,9 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    depends_on:
+      config-init-prometheus:
+        condition: service_completed_successfully
 
   grafana:
     image: grafana/grafana:latest
@@ -355,15 +472,51 @@ services:
       - db-master
     restart: unless-stopped
 
-  cron:
+  # Auto-Failover Daemon
+  failover-daemon:
     build:
-      context: ./cron
-    container_name: cron
+      context: .
+      dockerfile: monitoring/failover/Dockerfile
+    container_name: failover-daemon
+    env_file: .env
+    command: /scripts/auto-failover-daemon.sh
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.env:/config/.env:ro
     networks:
       - app-network
     depends_on:
-      - notificaciones
+      db-master:
+        condition: service_started
+      db-slave:
+        condition: service_started
+      db-proxy:
+        condition: service_started
     restart: unless-stopped
+
+  # Auto-Failback Daemon (opcional)
+  failback-daemon:
+    build:
+      context: .
+      dockerfile: monitoring/failover/Dockerfile
+    container_name: failback-daemon
+    env_file: .env
+    command: /scripts/auto-failback-daemon.sh
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.env:/config/.env:ro
+    networks:
+      - app-network
+    depends_on:
+      db-master:
+        condition: service_started
+      db-slave:
+        condition: service_started
+      db-proxy:
+        condition: service_started
+    restart: unless-stopped
+    profiles:
+      - failback  # Solo se inicia con: docker-compose --profile failback up
 
 networks:
   app-network:
@@ -375,5 +528,12 @@ volumes:
   redis-data:
   documentos-uploads:
   prometheus-data:
+  prometheus-config:
   grafana-data:
   frontend-node-modules:
+  db-master-init-scripts: {}
+  db-slave-init-scripts: {}
+  redis-config:
+  proxysql-config:
+  proxysql-data:
+  traefik-config:

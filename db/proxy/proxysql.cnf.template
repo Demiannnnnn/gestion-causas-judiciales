@@ -1,0 +1,69 @@
+# proxysql.cnf - Basic Configuration
+
+# Admin interface configuration
+admin_variables=
+{
+    admin_credentials="admin:admin_password"
+    mysql_ifaces="0.0.0.0:6032"
+}
+
+# MySQL user configuration
+mysql_variables=
+{
+    # The user our applications will use to connect to ProxySQL
+    # NOTE: The password here is just a placeholder for ProxySQL's internal user management.
+    # It doesn't have to match the real DB password but it's good practice.
+    # ProxySQL will use the credentials defined in mysql_servers to connect to the backend.
+    monitor_username = "__MYSQL_MONITOR_USER__"
+    ***REMOVED*** = "__MYSQL_MONITOR_PASSWORD__"
+    monitor_connect_interval = 1000
+    monitor_ping_timeout = 500
+    monitor_connect_timeout = 1000
+}
+
+# Backend MySQL server configuration
+mysql_servers = (
+    # Hostgroup 10: Writers (Master)
+    {
+        hostgroup_id = 10
+        hostname = "db-master"
+        port = 3306
+        weight = 100
+    },
+    # Hostgroup 20: Readers (Slave)
+    {
+        hostgroup_id = 20
+        hostname = "db-slave"
+        port = 3306
+        weight = 100
+    }
+)
+
+# MySQL users configuration
+mysql_users = (
+    {
+        username = "appuser"
+        password = "password"
+        default_hostgroup = 10
+        active = 1
+    },
+    {
+        username = "__MYSQL_MONITOR_USER__"
+        password = "__MYSQL_MONITOR_PASSWORD__"
+        default_hostgroup = 10
+        active = 1
+    }
+)
+
+# Query routing rules
+# For now, we will send all traffic to the writer hostgroup (10)
+# Read/write splitting can be configured later.
+mysql_query_rules = (
+    {
+        rule_id = 1
+        active = 1
+        match_digest = ".*"
+        destination_hostgroup = 10
+        apply = 1
+    }
+)

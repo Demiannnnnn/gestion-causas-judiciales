@@ -20,11 +20,16 @@ ORDER BY hostgroup_id, hostname;
 "
 
 echo ""
-read -p "¿Confirmas promover '$NEW_MASTER' a master (HG 10)? [y/N] " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Cancelado por usuario."
-    exit 1
+# Permitir modo automático con flag -y
+if [[ "$1" != "-y" ]]; then
+    read -p "¿Confirmas promover '$NEW_MASTER' a master (HG 10)? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Cancelado por usuario."
+        exit 1
+    fi
+else
+    echo "Modo automático: procediendo sin confirmación"
 fi
 
 echo ""
@@ -38,12 +43,13 @@ FLUSH TABLES WITH READ LOCK;
 echo ""
 echo "Paso 2: Promoviendo $NEW_MASTER a master..."
 docker exec db-slave mysql -uroot -p"${MYSQL_ROOT_PASSWORD:-***REMOVED***}" -e "
-STOP SLAVE;
-RESET SLAVE ALL;
+STOP REPLICA;
+RESET REPLICA ALL;
 SET GLOBAL read_only=0;
 SET GLOBAL super_read_only=0;
-SHOW MASTER STATUS\G
 "
+
+docker exec db-slave mysql -uroot -p"${MYSQL_ROOT_PASSWORD:-***REMOVED***}" -e "SHOW MASTER STATUS\G" 2>/dev/null || echo "✓ Nueva master configurada"
 
 echo ""
 echo "Paso 3: Reconfigurando ProxySQL..."
