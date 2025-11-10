@@ -18,8 +18,8 @@ class LogAnalyzer:
         gemini_api_key = os.getenv('GEMINI_API_KEY')
         if gemini_api_key:
             genai.configure(api_key=gemini_api_key)
-            # Usar gemini-2.5-flash que es el modelo más reciente y rápido
-            self.gemini_model = genai.GenerativeModel('models/gemini-2.5-flash')
+            # Usar gemini-1.5-flash que es el modelo más reciente y rápido
+            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
         else:
             self.gemini_model = None
             logger.warning("GEMINI_API_KEY no configurada")
@@ -66,10 +66,8 @@ class LogAnalyzer:
     def analyze_with_gemini(self, logs, container_name):
         """Analiza logs usando Gemini AI"""
         if not self.gemini_model:
-            return {
-                "error": "Gemini no configurado",
-                "analysis": "No se pudo realizar análisis de IA"
-            }
+            # Modo de respaldo: análisis básico sin IA
+            return self._basic_log_analysis(logs, container_name)
         
         try:
             # Limitar tamaño de logs para enviar a la IA
@@ -108,9 +106,71 @@ Responde en formato estructurado y claro.
             
         except Exception as e:
             logger.error(f"Error en análisis con Gemini: {str(e)}")
+            # Si falla la IA, usar análisis básico
+            return self._basic_log_analysis(logs, container_name)
+    
+    def _basic_log_analysis(self, logs, container_name):
+        """Análisis básico de logs sin IA (modo respaldo)"""
+        try:
+            lines = logs.split('\n')
+            errors = [line for line in lines if 'error' in line.lower() or 'exception' in line.lower()]
+            warnings = [line for line in lines if 'warning' in line.lower() or 'warn' in line.lower()]
+            criticals = [line for line in lines if 'critical' in line.lower() or 'fatal' in line.lower()]
+            
+            analysis = f"""
+**ANÁLISIS BÁSICO DE LOGS - {container_name}**
+(Modo sin IA - API Key no disponible)
+
+**Resumen:**
+- Total de líneas analizadas: {len(lines)}
+- Errores encontrados: {len(errors)}
+- Warnings encontrados: {len(warnings)}
+- Mensajes críticos: {len(criticals)}
+
+**Problemas Detectados:**
+"""
+            
+            if criticals:
+                analysis += "\n**CRÍTICO:**\n"
+                for critical in criticals[:5]:
+                    analysis += f"- {critical.strip()}\n"
+            
+            if errors:
+                analysis += "\n**ERRORES:**\n"
+                for error in errors[:10]:
+                    analysis += f"- {error.strip()}\n"
+            
+            if warnings:
+                analysis += "\n**WARNINGS:**\n"
+                for warning in warnings[:5]:
+                    analysis += f"- {warning.strip()}\n"
+            
+            if not errors and not warnings and not criticals:
+                analysis += "\n✅ No se detectaron problemas evidentes en los logs recientes."
+            
+            analysis += "\n\n**Recomendación:** Configure una API key válida de Gemini para obtener análisis detallados con IA."
+            
+            critical_issues = []
+            for critical in criticals[:3]:
+                critical_issues.append({
+                    "title": f"Problema crítico en {container_name}",
+                    "description": critical.strip(),
+                    "container": container_name,
+                    "severity": "critical"
+                })
+            
+            return {
+                "analysis": analysis,
+                "critical_issues": critical_issues,
+                "timestamp": datetime.now().isoformat(),
+                "mode": "basic"
+            }
+        except Exception as e:
+            logger.error(f"Error en análisis básico: {str(e)}")
             return {
                 "error": str(e),
-                "analysis": "Error al realizar análisis de IA"
+                "analysis": "No se pudo realizar el análisis",
+                "critical_issues": []
             }
     
     def _extract_critical_issues(self, analysis_text, container_name):
