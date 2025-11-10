@@ -374,3 +374,6 @@ Este sistema de IA implementa:
 ✅ **API completa** para integración con otros servicios  
 
 Es una solución **completa, funcional y escalable** que cumple con los requisitos del proyecto y aporta valor real al sistema de gestión judicial.
+
+
+#a
