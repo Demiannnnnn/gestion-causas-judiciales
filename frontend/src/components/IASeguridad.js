@@ -35,7 +35,7 @@ function IASeguridad() {
 
   const fetchAlerts = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/alerts?status=open`);
+      const response = await fetch(`${API_URL}/alerts?status=open`);
       const data = await response.json();
       if (data.success) {
         setAlerts(data.alerts);
@@ -47,7 +47,7 @@ function IASeguridad() {
 
   const fetchSystemStats = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/stats/system`);
+      const response = await fetch(`${API_URL}/stats/system`);
       const data = await response.json();
       if (data.success) {
         setSystemStats(data.stats);
@@ -59,7 +59,7 @@ function IASeguridad() {
 
   const fetchContainerHealth = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/stats/containers`);
+      const response = await fetch(`${API_URL}/stats/containers`);
       const data = await response.json();
       if (data.success) {
         setContainerHealth(data.containers);
@@ -72,7 +72,7 @@ function IASeguridad() {
   const analyzeAllLogs = async () => {
     setAnalyzing(true);
     try {
-      const response = await fetch(`${API_URL}/api/analyze/logs`, {
+      const response = await fetch(`${API_URL}/analyze/logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ since: '1h' })
@@ -98,7 +98,7 @@ function IASeguridad() {
     
     setAnalyzing(true);
     try {
-      const response = await fetch(`${API_URL}/api/analyze/container/${selectedContainer}?since=1h`);
+      const response = await fetch(`${API_URL}/analyze/container/${selectedContainer}?since=1h`);
       const data = await response.json();
       if (data.success) {
         setAnalysisResult(data.analysis);
@@ -113,7 +113,7 @@ function IASeguridad() {
 
   const detectAnomalies = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/anomalies/detect`, {
+      const response = await fetch(`${API_URL}/anomalies/detect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -130,7 +130,7 @@ function IASeguridad() {
 
   const resolveAlert = async (alertId) => {
     try {
-      const response = await fetch(`${API_URL}/api/alerts/${alertId}/resolve`, {
+      const response = await fetch(`${API_URL}/alerts/${alertId}/resolve`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note: 'Resuelto desde dashboard' })

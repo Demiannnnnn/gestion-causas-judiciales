@@ -44,7 +44,7 @@ def health_check():
 
 # ==================== ANÁLISIS DE LOGS ====================
 
-@app.route('/api/analyze/logs', methods=['POST'])
+@app.route('/analyze/logs', methods=['POST'])
 def analyze_logs():
     """
     Analiza logs de contenedores específicos o todos
@@ -95,7 +95,7 @@ def analyze_logs():
         }), 500
 
 
-@app.route('/api/analyze/container/<container_name>', methods=['GET'])
+@app.route('/analyze/container/<container_name>', methods=['GET'])
 def analyze_specific_container(container_name):
     """Analiza un contenedor específico"""
     try:
@@ -126,7 +126,7 @@ def analyze_specific_container(container_name):
 
 # ==================== DETECCIÓN DE ANOMALÍAS ====================
 
-@app.route('/api/anomalies/detect', methods=['POST'])
+@app.route('/anomalies/detect', methods=['POST'])
 def detect_anomalies():
     """
     Detecta anomalías en el comportamiento de los contenedores
@@ -165,7 +165,7 @@ def detect_anomalies():
 
 # ==================== ALERTAS ====================
 
-@app.route('/api/alerts', methods=['GET'])
+@app.route('/alerts', methods=['GET'])
 def get_alerts():
     """Obtiene todas las alertas"""
     try:
@@ -193,7 +193,7 @@ def get_alerts():
         }), 500
 
 
-@app.route('/api/alerts/<int:alert_id>/resolve', methods=['PUT'])
+@app.route('/alerts/<int:alert_id>/resolve', methods=['PUT'])
 def resolve_alert(alert_id):
     """Marca una alerta como resuelta"""
     try:
@@ -217,7 +217,7 @@ def resolve_alert(alert_id):
 
 # ==================== ESTADÍSTICAS ====================
 
-@app.route('/api/stats/system', methods=['GET'])
+@app.route('/stats/system', methods=['GET'])
 def get_system_stats():
     """Obtiene estadísticas del sistema"""
     try:
@@ -236,7 +236,7 @@ def get_system_stats():
         }), 500
 
 
-@app.route('/api/stats/containers', methods=['GET'])
+@app.route('/stats/containers', methods=['GET'])
 def get_containers_health():
     """Obtiene el estado de salud de todos los contenedores"""
     try:
@@ -291,7 +291,7 @@ def run_automatic_analysis():
             time.sleep(60)
 
 
-@app.route('/api/analysis/start', methods=['POST'])
+@app.route('/analysis/start', methods=['POST'])
 def start_automatic_analysis():
     """Inicia el análisis automático"""
     global analysis_running
@@ -310,7 +310,7 @@ def start_automatic_analysis():
         }), 400
 
 
-@app.route('/api/analysis/stop', methods=['POST'])
+@app.route('/analysis/stop', methods=['POST'])
 def stop_automatic_analysis():
     """Detiene el análisis automático"""
     global analysis_running
@@ -324,7 +324,7 @@ def stop_automatic_analysis():
 
 # ==================== CONFIGURACIÓN ====================
 
-@app.route('/api/config', methods=['GET'])
+@app.route('/config', methods=['GET'])
 def get_config():
     """Obtiene la configuración actual"""
     return jsonify({
