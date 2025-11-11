@@ -1,5 +1,6 @@
 import docker
 import google.generativeai as genai
+from openai import OpenAI
 import os
 import logging
 from datetime import datetime, timedelta
@@ -14,15 +15,24 @@ class LogAnalyzer:
     def __init__(self):
         self.docker_client = docker.from_env()
         
-                # Configurar Gemini
+        # Configurar Gemini
         gemini_api_key = os.getenv('GEMINI_API_KEY')
         if gemini_api_key:
             genai.configure(api_key=gemini_api_key)
-            # Usar gemini-1.5-flash que es el modelo más reciente y rápido
-            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+            # Usar gemini-2.0-flash-lite que tiene más requests gratuitos
+            self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-lite')
+            logger.info("Gemini configurado con modelo: gemini-2.0-flash-lite")
         else:
             self.gemini_model = None
             logger.warning("GEMINI_API_KEY no configurada")
+        
+        # Configurar OpenAI
+        openai_api_key = os.getenv('OPENAI_API_KEY')
+        if openai_api_key:
+            self.openai_client = OpenAI(api_key=openai_api_key)
+        else:
+            self.openai_client = None
+            logger.warning("OPENAI_API_KEY no configurada")
     
     def get_container_logs(self, container_name, since='1h'):
         """Obtiene logs de un contenedor"""
@@ -106,6 +116,61 @@ Responde en formato estructurado y claro.
             
         except Exception as e:
             logger.error(f"Error en análisis con Gemini: {str(e)}")
+            # Si falla la IA, usar análisis básico
+            return self._basic_log_analysis(logs, container_name)
+    
+    def analyze_with_openai(self, logs, container_name):
+        """Analiza logs usando OpenAI"""
+        if not self.openai_client:
+            # Modo de respaldo: análisis básico sin IA
+            return self._basic_log_analysis(logs, container_name)
+        
+        try:
+            # Limitar tamaño de logs para enviar a la IA
+            max_log_size = 10000
+            if len(logs) > max_log_size:
+                logs = logs[-max_log_size:]
+            
+            prompt = f"""
+Eres un experto en análisis de logs y seguridad de sistemas. Analiza los siguientes logs del contenedor '{container_name}' y proporciona:
+
+1. **Resumen**: Breve descripción del estado del contenedor
+2. **Problemas Detectados**: Lista de errores, warnings o problemas encontrados
+3. **Nivel de Severidad**: Para cada problema (bajo, medio, alto, crítico)
+4. **Recomendaciones**: Acciones sugeridas para resolver problemas
+5. **Patrones Sospechosos**: Comportamientos anómalos o potenciales amenazas de seguridad
+
+LOGS:
+```
+{logs}
+```
+
+Responde en formato estructurado y claro.
+"""
+            
+            response = self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Eres un experto en análisis de logs y seguridad de sistemas."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1500
+            )
+            
+            analysis_text = response.choices[0].message.content
+            
+            # Parsear respuesta para extraer issues críticos
+            critical_issues = self._extract_critical_issues(analysis_text, container_name)
+            
+            return {
+                "analysis": analysis_text,
+                "critical_issues": critical_issues,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error en análisis con OpenAI: {str(e)}")
             # Si falla la IA, usar análisis básico
             return self._basic_log_analysis(logs, container_name)
     
@@ -233,6 +298,8 @@ Responde en formato estructurado y claro.
                 # Analizar con IA
                 if ai_provider == 'gemini':
                     analysis = self.analyze_with_gemini(logs, container_name)
+                elif ai_provider == 'openai':
+                    analysis = self.analyze_with_openai(logs, container_name)
                 else:
                     analysis = {"analysis": "Proveedor de IA no soportado"}
                 

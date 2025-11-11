@@ -26,6 +26,7 @@ alert_manager = AlertManager()
 health_monitor = HealthMonitor()
 
 # Variable para controlar el análisis automático
+# FALSE por defecto para ahorrar uso de API - solo análisis manual desde frontend
 analysis_running = False
 
 
@@ -274,7 +275,7 @@ def run_automatic_analysis():
             analysis = log_analyzer.analyze_containers(
                 container_names=[],
                 since='5m',
-                ai_provider='gemini'
+                ai_provider=os.getenv('AI_PROVIDER', 'gemini')
             )
             
             # Detectar anomalías
@@ -339,9 +340,9 @@ def get_config():
 
 
 if __name__ == '__main__':
-    # Iniciar análisis automático al arrancar
-    analysis_thread = threading.Thread(target=run_automatic_analysis, daemon=True)
-    analysis_thread.start()
+    # NO iniciar análisis automático por defecto (ahorra uso de API)
+    # El análisis solo se ejecutará cuando se llame desde el frontend
+    logger.info("Servicio IA-Seguridad iniciado - Análisis manual únicamente")
     
     # Iniciar Flask
     app.run(host='0.0.0.0', port=8005, debug=False)

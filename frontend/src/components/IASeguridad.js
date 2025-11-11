@@ -374,10 +374,11 @@ function IASeguridad() {
       <div className="alert alert-info mt-4">
         <h6 className="alert-heading">ℹ️ Sobre el Sistema de IA</h6>
         <ul className="mb-0">
-          <li>La IA analiza logs de todos los contenedores en tiempo real</li>
-          <li>Detecta errores, warnings y comportamientos anómalos automáticamente</li>
-          <li>Genera alertas cuando se encuentran problemas críticos</li>
-          <li>El análisis automático se ejecuta cada 5 minutos</li>
+          <li><strong>Análisis Manual:</strong> Presione el botón "Analizar" para ejecutar el análisis con IA</li>
+          <li>La IA analiza logs de contenedores y detecta errores, warnings y anomalías</li>
+          <li>Genera alertas automáticas cuando se encuentran problemas críticos</li>
+          <li><strong>Estadísticas actualizadas cada 30 segundos</strong> (CPU, memoria, estado) sin usar IA</li>
+          <li>El análisis con IA se ejecuta <strong>solo cuando usted lo solicita</strong> para optimizar el uso de la API</li>
         </ul>
       </div>
     </div>
