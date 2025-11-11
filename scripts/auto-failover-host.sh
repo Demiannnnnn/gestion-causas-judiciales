@@ -21,6 +21,8 @@ fi
 CHECK_INTERVAL="${FAILOVER_CHECK_INTERVAL:-30}"
 FAILURE_THRESHOLD="${FAILOVER_FAILURE_THRESHOLD:-3}"
 LOG_FILE="${FAILOVER_LOG_FILE:-./logs/failover-daemon.log}"
+MYSQL_MONITOR_USER="${MYSQL_MONITOR_USER:-monitor_user}"
+MYSQL_MONITOR_PASSWORD="${MYSQL_MONITOR_PASSWORD:-***REMOVED***}"
 
 # Crear directorio de logs
 mkdir -p "$(dirname "$LOG_FILE")"
@@ -69,16 +71,16 @@ check_master_health() {
         return 1
     fi
     
-    # Check 2: MySQL responde
-    if ! docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" ${MYSQL_MASTER_HOST:-db-master} \
-        mysql -uroot -e "SELECT 1;" >/dev/null 2>&1; then
+    # Check 2: MySQL responde (usar usuario monitor)
+    if ! docker exec -e MYSQL_PWD="$MYSQL_MONITOR_PASSWORD" ${MYSQL_MASTER_HOST:-db-master} \
+        mysql -u"$MYSQL_MONITOR_USER" -e "SELECT 1;" >/dev/null 2>&1; then
         log_warning "Master MySQL not responding"
         return 1
     fi
     
-    # Check 3: No está en read-only
-    local read_only=$(docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" ${MYSQL_MASTER_HOST:-db-master} \
-        mysql -uroot -NB -e "SELECT @@read_only;" 2>/dev/null || echo "1")
+    # Check 3: No está en read-only (usar usuario monitor)
+    local read_only=$(docker exec -e MYSQL_PWD="$MYSQL_MONITOR_PASSWORD" ${MYSQL_MASTER_HOST:-db-master} \
+        mysql -u"$MYSQL_MONITOR_USER" -NB -e "SELECT @@read_only;" 2>/dev/null || echo "1")
     
     if [ "$read_only" != "0" ]; then
         log_warning "Master is read-only"
@@ -89,8 +91,9 @@ check_master_health() {
 }
 
 check_slave_health() {
-    if ! docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" ${MYSQL_SLAVE_HOST:-db-slave} \
-        mysql -uroot -e "SELECT 1;" >/dev/null 2>&1; then
+    # Usar usuario monitor para verificar salud del slave
+    if ! docker exec -e MYSQL_PWD="$MYSQL_MONITOR_PASSWORD" ${MYSQL_SLAVE_HOST:-db-slave} \
+        mysql -u"$MYSQL_MONITOR_USER" -e "SELECT 1;" >/dev/null 2>&1; then
         return 1
     fi
     return 0

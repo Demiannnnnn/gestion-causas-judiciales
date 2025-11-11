@@ -26,7 +26,8 @@ if [ -f /config/.env ]; then
     set +a
 fi
 
-MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-***REMOVED***}"
+MYSQL_MONITOR_USER="${MYSQL_MONITOR_USER:-monitor_user}"
+MYSQL_MONITOR_PASSWORD="${MYSQL_MONITOR_PASSWORD:-***REMOVED***}"
 ORIGINAL_MASTER="${MYSQL_MASTER_HOST:-db-master}"
 CURRENT_MASTER="${MYSQL_SLAVE_HOST:-db-slave}"
 NOTIFICATION_WEBHOOK="${FAILOVER_NOTIFICATION_WEBHOOK:-}"
@@ -62,8 +63,9 @@ notify() {
 }
 
 check_original_master_health() {
-    if docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" $ORIGINAL_MASTER \
-        mysql -uroot -NB -e "SELECT 1;" >/dev/null 2>&1; then
+    # Usar usuario monitor para verificar la salud del master original
+    if docker exec -e MYSQL_PWD="$MYSQL_MONITOR_PASSWORD" $ORIGINAL_MASTER \
+        mysql -u"$MYSQL_MONITOR_USER" -NB -e "SELECT 1;" >/dev/null 2>&1; then
         return 0
     else
         return 1

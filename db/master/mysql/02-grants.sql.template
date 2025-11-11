@@ -31,13 +31,13 @@ GRANT INSERT, UPDATE ON `__MYSQL_DATABASE__`.LogAccion TO 'sistemas_app'@'%';
 CREATE USER IF NOT EXISTS 'readonly_app'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_PASSWORD_READONLY_APP__';
 GRANT SELECT ON `__MYSQL_DATABASE__`.* TO 'readonly_app'@'%';
 
--- Replicación
+-- Replicación (con permisos para failover/failback)
 CREATE USER IF NOT EXISTS 'replicator'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_REPLICATION_PASSWORD__' REQUIRE SSL;
-GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'replicator'@'%';
+GRANT REPLICATION SLAVE, REPLICATION CLIENT, SUPER ON *.* TO 'replicator'@'%';
 
--- Monitor
+-- Monitor (con permisos para failover/failback)
 CREATE USER IF NOT EXISTS '__MYSQL_MONITOR_USER__'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_MONITOR_PASSWORD__';
-GRANT REPLICATION CLIENT, SELECT ON *.* TO '__MYSQL_MONITOR_USER__'@'%';
+GRANT REPLICATION CLIENT, SELECT, SUPER, REPLICATION SLAVE ON *.* TO '__MYSQL_MONITOR_USER__'@'%';
 GRANT SELECT ON `__MYSQL_DATABASE__`.* TO '__MYSQL_MONITOR_USER__'@'%';
 
 -- App User
