@@ -165,6 +165,275 @@ Durante la presentación se mostrará:
 
 ---
 
+## 🔄 Sistema de Failover y Failback Automático
+
+### Descripción General
+
+El sistema incluye **automatización completa de failover y failback** para garantizar alta disponibilidad de la base de datos. En caso de que el servidor Master (primario) falle, la Replica (esclavo) se promueve automáticamente como nuevo Master.
+
+### Arquitectura de Failover
+
+```
+Estado Normal:
+┌──────────────┐         ┌──────────────┐
+│  db-master   │◄────────│  db-proxy    │
+│   :3306      │         │   :6033      │
+│ (WRITE/READ) │         │ (LOAD BALANCE)
+└──────────────┘         └──────────────┘
+       ▲                         ▲
+       │                         │
+       └─── Monitoreo activo ────┘
+              (health checks)
+
+Estado de Failover (Master cae):
+┌──────────────┐         ┌──────────────┐
+│  db-master   │ ✗ CAÍDA │  db-proxy    │
+│   OFFLINE    │         │   SWITCHING  │
+└──────────────┘         └──────────────┘
+                                │
+                                ▼
+                         ┌──────────────┐
+                         │  db-slave    │
+                         │ PROMOVIDO    │
+                         │ (NUEVO MASTER)
+                         └──────────────┘
+```
+
+### Componentes del Sistema
+
+#### 1. **ProxySQL (db-proxy:6033)**
+- Monitorea continuamente la salud de db-master y db-slave
+- Enruta automáticamente el tráfico al servidor disponible
+- Soporta 2 hostgroups:
+  - **Hostgroup 10**: Master (escritura)
+  - **Hostgroup 20**: Slave/Replica (lectura)
+
+#### 2. **Failover Daemon** (Auto-activado)
+```bash
+Container: failover-daemon
+Script: scripts/auto-failover-daemon.sh
+```
+- Monitorea cada 5 segundos si db-master está activo
+- Ejecuta automáticamente la promoción del slave si master cae
+- Modifica docker-compose.yml para actualizar las réplicas
+
+#### 3. **Failback Daemon** (Opcional, requiere perfil)
+```bash
+Container: failback-daemon (perfil: failback)
+Script: scripts/auto-failback-daemon.sh
+```
+- Monitorea si el Master original se recupera
+- Reinicia la replicación de forma segura
+- Evita conflictos y pérdida de datos
+
+### Cómo Funciona el Failover Automático
+
+#### Detección de Falla
+```bash
+1. ProxySQL intenta conectar a db-master cada segundo
+2. Tres intentos fallidos = Master considerado DOWN
+3. Activa el proceso de failover
+```
+
+#### Proceso de Failover
+```bash
+1. failover-daemon detecta que db-master está caído
+2. Ejecuta: docker exec db-slave mysql -e "STOP REPLICA"
+3. Ejecuta: docker exec db-slave mysql -e "RESET REPLICA ALL"
+4. Ejecuta: docker exec db-slave mysql -e "SET GLOBAL read_only=0"
+5. Actualiza docker-compose.yml:
+   - Cambia db-master a "paused: true"
+   - Configura db-slave como nuevo master
+6. ProxySQL detecta cambios y redirige tráfico
+7. El sistema continúa funcionando con el nuevo Master
+```
+
+### Instrucciones de Uso
+
+#### 1. Monitoreo del Estado Actual
+```bash
+# Ver estado de la replicación
+docker exec db-slave mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SHOW REPLICA STATUS\G"
+
+# Ver estadísticas de ProxySQL
+docker exec -it db-proxy proxysql-admin --config-file=/etc/proxysql/proxysql.cnf
+```
+
+#### 2. Simular una Falla (Prueba de Failover)
+```bash
+# Detener el Master deliberadamente
+docker compose stop db-master
+
+# Esperar 5-10 segundos...
+
+# Verificar que el slave fue promovido
+docker compose logs failover-daemon | tail -20
+
+# Ver que el sistema continúa funcionando
+curl http://localhost:8081/api/casos
+```
+
+#### 3. Recuperación Manual del Master Original
+
+**Opción A: Sin Failback Automático**
+```bash
+# 1. Reiniciar el Master
+docker compose start db-master
+
+# 2. Esperar a que esté listo (~30 segundos)
+docker compose exec db-master mysqladmin ping -u root -p${MYSQL_ROOT_PASSWORD}
+
+# 3. Reconfigurar manualmente la replicación
+docker compose exec db-master mysql -u root -p${MYSQL_ROOT_PASSWORD} -e \
+  "CHANGE REPLICATION SOURCE TO SOURCE_HOST='db-slave', SOURCE_USER='replicator', SOURCE_PASSWORD='${MYSQL_REPLICATION_PASSWORD}'"
+
+docker compose exec db-master mysql -u root -p${MYSQL_ROOT_PASSWORD} -e \
+  "SET GLOBAL read_only=1; START REPLICA"
+
+# 4. Actualizar docker-compose.yml para restaurar configuración original
+# (Cambiar db-slave back a replica)
+```
+
+**Opción B: Con Failback Automático**
+```bash
+# 1. Activar el daemon de failback
+docker compose --profile failback up -d failback-daemon
+
+# 2. Reiniciar el Master
+docker compose start db-master
+
+# 3. El failback-daemon automáticamente:
+#    - Detecta que db-master se recuperó
+#    - Copia datos del nuevo master al antiguo
+#    - Reconfigura la replicación
+#    - Promueve db-master como master nuevamente
+#    - Detiene failback-daemon (autocompletado)
+
+# 4. Verificar estado final
+docker compose exec db-master mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SHOW MASTER STATUS\G"
+```
+
+#### 4. Forzar un Failover Manual (Si es Necesario)
+```bash
+# ADVERTENCIA: Esto rompe la replicación. Solo usar en emergencias.
+
+# 1. Promover el slave
+docker exec db-slave mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "STOP REPLICA; RESET REPLICA ALL; SET GLOBAL read_only=0"
+
+# 2. Actualizar aplicación para usar nuevo master
+# (Cambiar DATABASE_URL en servicios a apuntar a db-slave)
+
+# 3. Luego, cuando master se recupere, sincronizar desde backup
+scripts/restore-db.sh --latest
+```
+
+### Scripts Disponibles
+
+| Script | Ubicación | Función |
+|--------|-----------|---------|
+| `auto-failover-daemon.sh` | `scripts/auto-failover-daemon.sh` | Monitorea y promueve replica en caso de falla del master |
+| `auto-failback-daemon.sh` | `scripts/auto-failback-daemon.sh` | Restaura master cuando se recupera (opcional) |
+| `failover-promote-slave.sh` | `scripts/failover-promote-slave.sh` | Promueve replica manualmente |
+| `failback-restore-master.sh` | `scripts/failback-restore-master.sh` | Restaura configuración original del master |
+| `check-replication-status.sh` | `scripts/check-replication-status.sh` | Verifica estado actual de replicación |
+
+### Verificar Estado de Failover
+
+```bash
+# Ver logs del daemon de failover
+docker compose logs failover-daemon
+
+# Buscar eventos de failover
+docker compose logs failover-daemon | grep -i "failover\|promote"
+
+# Ver cambios en docker-compose.yml
+git diff docker-compose.yml
+
+# Verificar que db-proxy está enrutando correctamente
+docker exec -it db-proxy mysql -h localhost -u admin -padmin -e "SHOW PROCESSLIST"
+```
+
+### Monitoreo con Prometheus/Grafana
+
+Los eventos de failover se registran y pueden monitorearse en Grafana:
+
+```bash
+# Acceder a Grafana
+http://localhost:3000
+
+# Dashboard: "Base de Datos - Replicación"
+# Buscar métricas:
+- mysql_global_status_threads_running (cambio en master)
+- mysql_global_status_read_only (cambio a read_only=0)
+- proxysql_mysql_monitor_errors (errores de conexión)
+```
+
+### Mejores Prácticas
+
+1. **Mantener backups actualizados**
+   ```bash
+   # Ejecutar backups regularmente
+   scripts/backup/backup-db.sh
+   ```
+
+2. **Probar failover regularmente**
+   ```bash
+   # Una vez al mes, simular una falla en control y confirmar que el sistema se recupera
+   ```
+
+3. **Monitorear logs**
+   ```bash
+   # Revisar regularmente los logs de failover
+   docker compose logs -f failover-daemon
+   ```
+
+4. **Actualizar credenciales en ProxySQL**
+   ```bash
+   # Si cambia MYSQL_MONITOR_PASSWORD, actualizar:
+   # scripts/config-templates/proxysql/proxysql.cnf.template
+   # Luego regenerar config: scripts/init-proxysql.sh
+   ```
+
+### Troubleshooting
+
+**Problema: Failover no se ejecuta automáticamente**
+```bash
+# Verificar que failover-daemon está corriendo
+docker compose ps failover-daemon
+
+# Ver logs del daemon
+docker compose logs failover-daemon
+
+# Verificar que ProxySQL está monitoreando
+docker compose exec db-proxy proxysql-admin --check-status
+```
+
+**Problema: ProxySQL no reconoce cambios**
+```bash
+# Reiniciar ProxySQL
+docker compose restart db-proxy
+
+# Esperar 10 segundos para que reconecte
+sleep 10
+
+# Verificar status
+docker compose exec db-proxy proxysql-admin --config-file=/etc/proxysql/proxysql.cnf
+```
+
+**Problema: Replicación rota después de failback**
+```bash
+# Detener ambos servidores
+docker compose stop db-master db-slave
+
+# Reiniciar limpio
+docker compose up -d db-master db-slave
+
+# Verificar replicación
+docker compose exec db-slave mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SHOW REPLICA STATUS\G"
+```
+
+---
+
 ## Componente de Inteligencia Artificial
 
 ### Funcionalidad: Agente IA para Detección de Brechas de Seguridad
