@@ -171,6 +171,14 @@ Durante la presentación se mostrará:
 
 El sistema incluye **automatización completa de failover y failback** para garantizar alta disponibilidad de la base de datos. En caso de que el servidor Master (primario) falle, la Replica (esclavo) se promueve automáticamente como nuevo Master.
 
+### Tabla de Contenidos de Failover/Failback
+1. [Conceptos Clave](#conceptos-clave-failover)
+2. [Arquitectura](#arquitectura-de-failover-1)
+3. [Scripts Disponibles](#scripts-disponibles-failover)
+4. [Procedimiento Completo](#procedimiento-completo-failover-failback)
+5. [Monitoreo](#monitoreo-y-validación-1)
+6. [Troubleshooting](#troubleshooting-failover)
+
 ### Arquitectura de Failover
 
 ```
@@ -1746,4 +1754,751 @@ docker-compose up -d
 - **Traefik** - API Gateway
 
 📖 **Documentación completa:** [docs/CONFIG-INIT-SYSTEM.md](docs/CONFIG-INIT-SYSTEM.md)
+
+---
+
+## 📘 Conceptos Clave: Failover
+
+### Failover
+- Proceso de conmutación automática/manual a un servidor de respaldo cuando el servidor principal falla.
+- Objetivo: Minimizar el tiempo de inactividad.
+- Tipo: Puede ser **automático** (mediante orquestación) o **manual** (asistido por scripts).
+
+### Failback
+- Proceso inverso al failover: retorno del servicio al servidor principal una vez recuperado.
+- Debe realizarse de forma ordenada y validada.
+- Riesgo: Pérdida de datos si no se sincroniza correctamente.
+
+### Check (Verificación)
+- Validación continua del estado de los servicios.
+- Detección de fallos.
+- Confirmación de sincronización entre instancias primaria y secundaria.
+
+---
+
+## Arquitectura de Failover
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Cliente (Frontend)                        │
+└────────────────┬────────────────────────────────────────────┘
+                 │
+         ┌───────▼────────┐
+         │  Traefik/LB    │
+         │  (API Gateway) │
+         └───────┬────────┘
+                 │
+    ┌────────────┼────────────┐
+    │            │            │
+┌───▼────┐  ┌───▼────┐  ┌───▼────┐
+│ Primary│  │Secondary│  │Tertiary│
+│ Server │  │ Server  │  │ Server │
+└────────┘  └─────────┘  └────────┘
+    │            │            │
+    └────────────┼────────────┘
+                 │
+         ┌───────▼────────┐
+         │  MySQL Cluster │
+         │  (Replication) │
+         └────────────────┘
+```
+
+---
+
+## Scripts Disponibles: Failover
+
+### 1. `check_health.sh` - Health Check Script
+
+**Ubicación**: `scripts/failover/check_health.sh`
+
+**Descripción**: Script para monitorear la salud general del sistema de replicación MySQL.
+
+**Uso básico**:
+```bash
+chmod +x scripts/failover/check_health.sh
+./scripts/failover/check_health.sh [--verbose] [--webhook <url>]
+```
+
+**Opciones**:
+- `--verbose`: Salida detallada
+- `--webhook`: URL para notificaciones en webhooks
+
+**¿Qué verifica?**
+- ✅ Estado de conectividad de los servicios principales
+- ✅ Disponibilidad de la base de datos
+- ✅ Estado del caché Redis
+- ✅ Latencia de respuesta
+- ✅ Replicación sincronizada
+
+**Salida esperada**:
+```
+==========================================
+HEALTH CHECK - Sistema de Causas Judiciales
+==========================================
+
+✅ Frontend: Healthy (127.0.0ms)
+✅ Backend API: Healthy (45ms)
+✅ MySQL Master: Healthy (2ms)
+✅ MySQL Replica: Healthy (3ms)
+✅ Redis: Healthy (1ms)
+
+REPLICATION STATUS:
+Slave_IO_Running: Yes
+Slave_SQL_Running: Yes
+Seconds_Behind_Master: 0
+
+✅ SISTEMA OPERACIONAL - No se requiere acción
+```
+
+---
+
+### 2. `do_failover.sh` - Ejecutar Failover
+
+**Ubicación**: `scripts/failover/do_failover.sh`
+
+**Descripción**: Script para promover manualmente el Replica como nuevo Master (ejecutar failover manual).
+
+**Uso**:
+```bash
+chmod +x scripts/failover/do_failover.sh
+./scripts/failover/do_failover.sh <primary_host> <secondary_host> [--force] [--no-verify]
+```
+
+**Opciones**:
+- `--force`: Forzar failover sin confirmación
+- `--no-verify`: Omitir verificaciones post-failover
+
+**Ejemplo**:
+```bash
+./scripts/failover/do_failover.sh db-master db-slave --force
+```
+
+**Proceso que ejecuta**:
+1. Validación de prerrequisitos
+2. Sincronización de datos pendientes
+3. Activación del servidor secundario
+4. Actualización de la configuración de Traefik
+5. Redirección de tráfico
+6. Validación post-failover
+
+**Salida esperada**:
+```
+==========================================
+EJECUTANDO FAILOVER
+==========================================
+
+✓ Validando conexión a db-master... OFFLINE
+✓ Validando conexión a db-slave... ONLINE
+✓ Sincronizando datos pendientes...
+✓ Deteniendo replicación en db-slave...
+✓ Promoviendo db-slave como nuevo Master...
+✓ Actualizando Traefik...
+✓ Redirigiendo tráfico...
+
+✅ FAILOVER COMPLETADO
+   Nuevo Master: db-slave
+   Replicación pausada hasta recuperación del primario
+```
+
+---
+
+### 3. `check_failover_status.sh` - Verificar Estado
+
+**Ubicación**: `scripts/failover/check_failover_status.sh`
+
+**Descripción**: Script para verificar el estado actual del failover y replicación.
+
+**Uso**:
+```bash
+chmod +x scripts/failover/check_failover_status.sh
+./scripts/failover/check_failover_status.sh [--json]
+```
+
+**Opciones**:
+- `--json`: Salida en formato JSON para integración
+
+**Salida esperada (texto)**:
+```
+==========================================
+ESTADO DEL FAILOVER
+==========================================
+
+MASTER ACTUAL: db-slave
+REPLICA: db-master (OFFLINE - Esperando recuperación)
+
+ESTADO DE REPLICACIÓN:
+  IO Thread: Stopped (Esperando master)
+  SQL Thread: Stopped
+
+DATOS:
+  Tablas sincronizadas: 25/25
+  Últimas transacciones: 1500
+  Lag de replicación: N/A
+
+SERVICIOS:
+  Frontend: OK
+  Auth Service: OK
+  Casos Service: OK
+  Documentos Service: OK
+```
+
+**Salida esperada (JSON)**:
+```json
+{
+  "status": "active_failover",
+  "master": "db-slave",
+  "replica": "db-master",
+  "replica_status": "offline",
+  "replication": {
+    "io_thread": "stopped",
+    "sql_thread": "stopped",
+    "lag_seconds": null
+  },
+  "services": {
+    "frontend": "healthy",
+    "api": "healthy"
+  }
+}
+```
+
+---
+
+## Procedimiento Completo: Failover y Failback
+
+### Escenario: Master falla durante producción
+
+#### Paso 1: Detección automática (automático)
+```bash
+failover-daemon detecta caída de db-master
+→ Ejecuta do_failover.sh automáticamente
+→ db-slave se promueve como nuevo Master
+```
+
+#### Paso 2: Verificar estado (manual)
+```bash
+./scripts/failover/check_failover_status.sh
+
+# Confirmar que db-slave ahora es Master
+# Todos los servicios deben estar operacionales
+```
+
+#### Paso 3: Reparar Master original (operacional)
+```bash
+# Ejemplo: reiniciar db-master
+docker compose restart db-master
+
+# Esperar a que esté listo
+sleep 30
+
+# Verificar que está disponible
+./scripts/failover/check_health.sh --verbose
+```
+
+#### Paso 4: Ejecutar Failback (manual)
+```bash
+# Restaurar configuración original
+./scripts/failback/do_failback.sh db-master db-slave
+
+# El script:
+# 1. Valida estado del db-master recuperado
+# 2. Sincroniza datos desde db-slave
+# 3. Reconecta db-master como Replica
+# 4. Promueve db-master a Master
+# 5. Actualiza Traefik
+```
+
+#### Paso 5: Verificar integridad (manual)
+```bash
+# Confirmar estado final
+./scripts/failover/check_failover_status.sh
+
+# Debe mostrar:
+# MASTER ACTUAL: db-master
+# REPLICA: db-slave (ONLINE)
+# Replicación normal
+```
+
+---
+
+## Monitoreo y Validación
+
+### Puntos de Control Críticos
+
+1. **Base de Datos**
+   - ✅ Replicación sincronizada
+   - ✅ Sin error de replicación
+   - ✅ Consistencia de datos verificada
+
+2. **Servicios Backend**
+   - ✅ Todos los microservicios en estado "healthy"
+   - ✅ Sin errores de conexión
+   - ✅ Latencia dentro de límites
+
+3. **Frontend**
+   - ✅ Accesible desde navegador
+   - ✅ Sesiones activas preservadas
+   - ✅ Sin errores de consola
+
+4. **Cache Redis**
+   - ✅ Conectividad activa
+   - ✅ TTL de keys preservado
+   - ✅ Sin pérdida de sesiones
+
+### Métricas Monitoreadas
+
+```
+Sistema de Alertas:
+├── CPU > 80% → Investigar
+├── Memoria > 85% → Investigar
+├── Latencia DB > 200ms → Crítico
+├── Replicación lag > 5s → Crítico
+├── Conexiones rechazadas → Crítico
+└── Errores 5xx > 1% → Crítico
+```
+
+### Ver eventos en Grafana
+
+```bash
+# 1. Acceder a Grafana
+http://localhost:3000
+
+# 2. Ir a Dashboard → "Base de Datos - Replicación"
+
+# 3. Buscar estos eventos:
+   - mysql_slave_status_seconds_behind_master
+   - mysql_slave_status_slave_io_running
+   - mysql_global_status_read_only
+   - proxysql_mysql_monitor_connect_errors
+```
+
+---
+
+## Troubleshooting: Failover
+
+### Problema: Failover Lento
+
+**Síntomas**:
+- Tiempo de conmutación > 5 minutos
+- Usuarios reportan desconexiones prolongadas
+
+**Causas Posibles**:
+1. Sincronización de datos incompleta
+2. Cierre gradual de conexiones lento
+
+**Solución**:
+```bash
+# Aumentar agresividad de sincronización
+export FAILOVER_TIMEOUT=300
+
+# Forzar cierre de conexiones antiguas
+docker compose exec db-proxy mysql -e "KILL QUERY ALL"
+
+# Ejecutar failover nuevamente
+./scripts/failover/do_failover.sh db-master db-slave --force
+```
+
+### Problema: Pérdida de Datos
+
+**Síntomas**:
+- Transacciones no registradas
+- Inconsistencia entre servidores
+
+**Causas Posibles**:
+1. Replicación no sincronizada
+2. Transacciones en curso durante failover
+
+**Solución**:
+```bash
+# Validar integridad
+./scripts/failover/check_health.sh --verbose
+
+# Esperar sincronización completa
+while [ $(./scripts/failover/check_failover_status.sh --json | grep "lag_seconds" | grep -v null) ]; do
+  sleep 5
+done
+
+# Luego ejecutar failover
+./scripts/failover/do_failover.sh db-master db-slave
+```
+
+### Problema: Failback Fallido
+
+**Síntomas**:
+- Script retorna error
+- Servidor primario no activa
+
+**Causas Posibles**:
+1. Servidor primario aún no recuperado
+2. Problemas de sincronización
+
+**Solución**:
+```bash
+# Verificar estado del primario
+./scripts/failover/check_health.sh
+
+# Si hay errores, esperar más
+sleep 60 && ./scripts/failover/check_health.sh
+
+# Luego ejecutar failback
+./scripts/failback/do_failback.sh db-master db-slave
+
+# Si persiste, contactar soporte y revisar logs:
+docker compose logs failover-daemon | tail -50
+```
+
+### Problema: ProxySQL no reconoce cambios
+
+**Síntomas**:
+- Las aplicaciones siguen apuntando al antiguo master
+- Tráfico no se redirige
+
+**Solución**:
+```bash
+# Reiniciar ProxySQL
+docker compose restart db-proxy
+
+# Esperar a que reconecte
+sleep 10
+
+# Verificar status
+./scripts/failover/check_failover_status.sh
+```
+
+---
+
+## Checklist de Failover
+
+### ✅ Antes de Failover
+- [ ] Notificar al equipo y usuarios
+- [ ] Crear ticket de incidente
+- [ ] Ejecutar `./scripts/failover/check_health.sh`
+- [ ] Verificar backups recientes
+- [ ] Confirmar servidor secundario está listo
+
+### ⚙️ Durante Failover
+- [ ] Ejecutar `./scripts/failover/do_failover.sh`
+- [ ] Monitorear logs en tiempo real: `docker compose logs -f failover-daemon`
+- [ ] Verificar alertas en Grafana
+- [ ] Validar estado post-failover: `./scripts/failover/check_failover_status.sh`
+
+### ✅ Después de Failover
+- [ ] Confirmar servicios operativos
+- [ ] Probar funcionalidades críticas
+- [ ] Notificar al usuario
+- [ ] Documentar incidente
+
+---
+
+## Checklist de Failback
+
+### ✅ Antes de Failback
+- [ ] Servidores primario completamente recuperado
+- [ ] Ejecutar `./scripts/failover/check_health.sh`
+- [ ] Datos sincronizados al 100%
+- [ ] Ventana de mantenimiento confirmada
+- [ ] Equipo de soporte disponible
+- [ ] Backups actuales realizados
+
+### ⚙️ Durante Failback
+- [ ] Ejecutar `./scripts/failback/do_failback.sh`
+- [ ] Monitorear durante transición: `docker compose logs -f failover-daemon`
+- [ ] Estar listo para rollback: `./scripts/failover/do_failover.sh` (revertir)
+
+### ✅ Después de Failback
+- [ ] Verificar servicios normalizados: `./scripts/failover/check_failover_status.sh`
+- [ ] Probar todas las funcionalidades
+- [ ] Validar replicación secundaria está activa
+- [ ] Documentar resultados
+- [ ] Revisar logs para anomalías: `docker compose logs failover-daemon | grep -i error`
+
+---
+
+## Flujo Rápido de Referencia
+
+```bash
+# 1. DETECTAR PROBLEMA
+./scripts/check-replication-status.sh
+
+# 2. SI MASTER ESTÁ DOWN, EJECUTAR FAILOVER
+sudo ./scripts/failover-promote-slave.sh -y
+
+# 3. VERIFICAR ESTADO
+./scripts/check-replication-status.sh
+
+# 4. CUANDO MASTER SE RECUPERA, EJECUTAR FAILBACK
+sudo ./scripts/failback-restore-master.sh -y
+
+# 5. VERIFICAR VUELTA A NORMAL
+./scripts/check-replication-status.sh
+```
+
+---
+
+## 🎯 Scripts Principales (Producción)
+
+### 1. `check-replication-status.sh` - Verificar Estado
+
+**Ubicación**: `scripts/check-replication-status.sh`
+
+**Descripción**: Verifica la salud general del sistema de replicación MySQL y ProxySQL.
+
+**Uso**:
+```bash
+./scripts/check-replication-status.sh
+```
+
+**¿Qué verifica?**
+- ✅ Estado de ProxySQL (hostgroups, servidor)
+- ✅ Pool de conexiones
+- ✅ Estado del Master (hostname, server_id, read_only)
+- ✅ Estado de replicación del Slave
+- ✅ GTID sincronizados
+
+**Salida esperada (sistema saludable)**:
+```
+==========================================
+Database Replication Health Check
+==========================================
+
+=== ProxySQL Server Status ===
+hostgroup_id | hostname  | port | status | weight | max_connections
+10           | db-master | 3306 | ONLINE | 1      | 100
+20           | db-master | 3306 | ONLINE | 1      | 100
+20           | db-slave  | 3306 | ONLINE | 1      | 100
+
+=== DB Master Status ===
+hostname | server_id | read_only | super_read_only
+db-master| 1        | 0         | 0
+
+=== DB Slave Replication Status ===
+SERVICE_STATE: ON
+LAST_ERROR_MESSAGE: (vacío)
+
+=== GTID Status ===
+Master GTID: a1b2c3d4:1-1000
+Slave GTID:  a1b2c3d4:1-1000
+```
+
+---
+
+### 2. `failover-promote-slave.sh` - Ejecutar Failover
+
+**Ubicación**: `scripts/failover-promote-slave.sh`
+
+**Descripción**: Promueve el Slave como nuevo Master automáticamente.
+
+**Uso**:
+```bash
+# Con confirmación interactiva
+sudo ./scripts/failover-promote-slave.sh
+
+# Sin confirmación (modo automático)
+sudo ./scripts/failover-promote-slave.sh -y
+```
+
+**Opciones**:
+- `-y`: Ejecutar sin confirmación interactiva
+
+**Variables de entorno (.env)**:
+```bash
+OLD_MASTER=db-master
+NEW_MASTER=db-slave
+PROXYSQL_CONTAINER=db-proxy
+PROXYSQL_ADMIN_USER=admin
+PROXYSQL_ADMIN_PASSWORD=admin
+MYSQL_ROOT_PASSWORD=tu_contraseña
+MYSQL_REPLICATION_USER=replicator
+MYSQL_REPLICATION_PASSWORD=tu_contraseña
+```
+
+**Proceso que ejecuta**:
+1. Bloquea escrituras en el master antiguo
+2. Detiene replicación en el slave
+3. Promueve slave como nuevo master
+4. Actualiza ProxySQL (hostgroup 10 y 20)
+5. Verifica funcionamiento
+
+**Ejemplo de ejecución**:
+```bash
+$ sudo ./scripts/failover-promote-slave.sh -y
+
+==========================================
+ProxySQL Failover: Promote Slave to Master
+==========================================
+
+Verificando estado actual de ProxySQL...
+hostgroup_id | hostname  | status
+10           | db-master | ONLINE
+20           | db-slave  | ONLINE
+
+Modo automático: procediendo sin confirmación
+
+Paso 1: Deteniendo escrituras en antiguo master (db-master)...
+Paso 2: Desactivando replicación en db-slave y habilitando writes...
+Paso 3: Reconfigurando ProxySQL...
+
+✅ Failover completado:
+   - Nuevo Master: db-slave (hostgroups 10 y 20)
+   - Antiguo Master: db-master (OFFLINE en ambos hostgroups)
+
+⚠️  Próximos pasos:
+   1. Verificar conectividad de aplicaciones
+   2. Monitorear logs: docker logs -f db-proxy
+   3. Planificar failback cuando el antiguo master esté disponible
+```
+
+---
+
+### 3. `failback-restore-master.sh` - Ejecutar Failback
+
+**Ubicación**: `scripts/failback-restore-master.sh`
+
+**Descripción**: Restaura el master original y revierte la configuración.
+
+**Uso**:
+```bash
+# Con confirmación interactiva en cada paso
+sudo ./scripts/failback-restore-master.sh
+
+# Sin confirmación (modo automático)
+sudo ./scripts/failback-restore-master.sh -y
+```
+
+**Opciones**:
+- `-y`: Ejecutar sin confirmación interactiva
+
+**Variables de entorno (.env)**:
+```bash
+ORIGINAL_MASTER=db-master
+CURRENT_MASTER=db-slave
+PROXYSQL_CONTAINER=db-proxy
+PROXYSQL_ADMIN_USER=admin
+PROXYSQL_ADMIN_PASSWORD=admin
+MYSQL_ROOT_PASSWORD=tu_contraseña
+MYSQL_REPLICATION_USER=replicator
+MYSQL_REPLICATION_PASSWORD=tu_contraseña
+```
+
+**Proceso que ejecuta**:
+1. Configura master original como replica del actual
+2. Espera sincronización completa (2+ confirmaciones GTID)
+3. Bloquea escrituras en master actual
+4. Promueve master original nuevamente
+5. Configura master actual como replica
+6. Actualiza ProxySQL
+
+**Ejemplo de ejecución**:
+```bash
+$ sudo ./scripts/failback-restore-master.sh -y
+
+==========================================
+ProxySQL Failback: Restore Original Master
+==========================================
+
+Verificando estado actual de ProxySQL...
+hostgroup_id | hostname  | status
+20           | db-slave  | ONLINE
+
+Modo automático: procediendo sin confirmación
+
+Paso 1: Reconfigurando db-master como slave...
+✅ Replicación activa
+
+Paso 2: Verificando replicación...
+✅ Replicación activa
+
+Paso 3: Esperando sincronización completa...
+✅ Sincronización confirmada (1/2)
+✅ Sincronización confirmada (2/2)
+✅ db-master está completamente sincronizado con GTIDs idénticos
+
+[Pasos 4-7: Sincronización y promoción...]
+
+Paso 8: Reconfigurando ProxySQL...
+
+✅ Failback completado:
+   - Master restaurado: db-master (hostgroup 10)
+   - Slave: db-slave (hostgroup 20)
+
+⚠️  Verificar:
+   1. Conectividad de aplicaciones
+   2. Replicación: docker exec db-slave mysql -u root -p -e "SHOW REPLICA STATUS\G"
+   3. Logs ProxySQL: docker logs -f db-proxy
+```
+
+---
+
+## ⚠️ Diferencias de Scripts
+
+| Script | Ubicación | Cuando usarlo | Requiere |
+|--------|-----------|---------------|----------|
+| **check-replication-status.sh** | `scripts/` | Verificar estado | Lectura |
+| **failover-promote-slave.sh** | `scripts/` | Master está DOWN | sudo |
+| **failback-restore-master.sh** | `scripts/` | Master recuperado | sudo |
+| check_health.sh | `scripts/failover/` | Health check completo | Lectura |
+| do_failover.sh | `scripts/failover/` | Failover manual avanzado | sudo |
+| prepare_failback.sh | `scripts/failback/` | Pre-validación failback | Lectura |
+| do_failback.sh | `scripts/failback/` | Failback avanzado | sudo |
+| verify_failback.sh | `scripts/failback/` | Post-validación | Lectura |
+
+---
+
+## 🚨 Casos de Uso Prácticos
+
+### Caso 1: Master Falla Inesperadamente
+
+```bash
+# 1. Verificar qué pasó
+./scripts/check-replication-status.sh
+
+# 2. Ver que db-master está DOWN
+# ❌ db-master no está corriendo
+
+# 3. Ejecutar failover inmediatamente
+sudo ./scripts/failover-promote-slave.sh -y
+
+# 4. Verificar que sistema está UP con nuevo master
+./scripts/check-replication-status.sh
+# Debe mostrar: db-slave en hostgroup 10 (ONLINE)
+
+# 5. Notificar al equipo
+# "Master falla. Failover a db-slave completado. Sistema UP."
+```
+
+### Caso 2: Master Se Recupera, Hacer Failback
+
+```bash
+# 1. Verificar estado actual
+./scripts/check-replication-status.sh
+# Muestra: db-slave es master actual
+
+# 2. Confirmar que master original está listo
+docker compose ps db-master
+# CONTAINER ID | STATUS: Up X seconds
+
+# 3. Ejecutar failback
+sudo ./scripts/failback-restore-master.sh -y
+
+# 4. Verificar restauración
+./scripts/check-replication-status.sh
+# Debe mostrar: db-master en hostgroup 10 (ONLINE)
+
+# 5. Confirmar con aplicaciones
+curl http://localhost/api/casos
+# Debe responder OK
+```
+
+### Caso 3: Verificación Regular (Health Check)
+
+```bash
+# Ejecutar cada 4 horas o según SLA
+0 */4 * * * cd /path/to/proyecto && ./scripts/check-replication-status.sh | tee -a /var/log/replication-check.log
+
+# Si hay problemas:
+# - Enviar alerta a equipo
+# - Revisar logs: docker compose logs failover-daemon
+# - Contactar DevOps
+```
+
+---
 
