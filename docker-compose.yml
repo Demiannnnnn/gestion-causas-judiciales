@@ -93,36 +93,38 @@ services:
     image: alpine:latest
     container_name: db-init
     env_file: .env
-    command: sh -c "
-      apk add --no-cache sed &&
-      echo 'Copying MASTER scripts...' &&
-      cp /source-scripts-master/01-schema.sql /init-target-master/ &&
-      cp /source-scripts-master/02-grants.sql.template /init-target-master/ &&
-      cp /source-scripts-master/03-triggers.sql /init-target-master/ &&
-
-      echo 'Copying SLAVE scripts...' &&
-      cp /source-scripts-slave/init-slave.sh /init-target-slave/ &&
-      cp /source-scripts-slave/01-create-replication-user.sql.template /init-target-slave/ &&
-
-      echo 'Processing MASTER grants template...' &&
-      sed -e 's|__MYSQL_DATABASE__|${MYSQL_DATABASE}|g' \
-          -e 's|__MYSQL_MONITOR_PASSWORD__|${MYSQL_MONITOR_PASSWORD}|g' \
-          -e 's|__MYSQL_MONITOR_USER__|${MYSQL_MONITOR_USER}|g' \
-          -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
-          -e 's|__MYSQL_PASSWORD__|${MYSQL_PASSWORD}|g' \
-          -e 's|__MYSQL_PASSWORD_ADMIN_APP__|${MYSQL_PASSWORD_ADMIN_APP}|g' \
-          -e 's|__MYSQL_PASSWORD_ABOGADO_APP__|${MYSQL_PASSWORD_ABOGADO_APP}|g' \
-          -e 's|__MYSQL_PASSWORD_ASISTENTE_APP__|${MYSQL_PASSWORD_ASISTENTE_APP}|g' \
-          -e 's|__MYSQL_PASSWORD_SISTEMAS_APP__|${MYSQL_PASSWORD_SISTEMAS_APP}|g' \
-          -e 's|__MYSQL_PASSWORD_READONLY_APP__|${MYSQL_PASSWORD_READONLY_APP}|g' \
-          /init-target-master/02-grants.sql.template > /init-target-master/02-grants.sql &&
-
-      echo 'Processing SLAVE replication user template...' &&
-      sed -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
-          /init-target-slave/01-create-replication-user.sql.template > /init-target-slave/01-create-replication-user.sql &&
-
-      echo 'Initialization scripts ready.'
-      "
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache sed
+        echo 'Copying MASTER scripts...'
+        cp /source-scripts-master/01-schema.sql /init-target-master/
+        cp /source-scripts-master/02-grants.sql.template /init-target-master/
+        cp /source-scripts-master/03-triggers.sql /init-target-master/
+        
+        echo 'Copying SLAVE scripts...'
+        cp /source-scripts-slave/init-slave.sh /init-target-slave/
+        cp /source-scripts-slave/01-create-replication-user.sql.template /init-target-slave/
+        
+        echo 'Processing MASTER grants template...'
+        sed -e 's|__MYSQL_DATABASE__|${MYSQL_DATABASE}|g' \
+            -e 's|__MYSQL_MONITOR_PASSWORD__|${MYSQL_MONITOR_PASSWORD}|g' \
+            -e 's|__MYSQL_MONITOR_USER__|${MYSQL_MONITOR_USER}|g' \
+            -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
+            -e 's|__MYSQL_PASSWORD__|${MYSQL_PASSWORD}|g' \
+            -e 's|__MYSQL_PASSWORD_ADMIN_APP__|${MYSQL_PASSWORD_ADMIN_APP}|g' \
+            -e 's|__MYSQL_PASSWORD_ABOGADO_APP__|${MYSQL_PASSWORD_ABOGADO_APP}|g' \
+            -e 's|__MYSQL_PASSWORD_ASISTENTE_APP__|${MYSQL_PASSWORD_ASISTENTE_APP}|g' \
+            -e 's|__MYSQL_PASSWORD_SISTEMAS_APP__|${MYSQL_PASSWORD_SISTEMAS_APP}|g' \
+            -e 's|__MYSQL_PASSWORD_READONLY_APP__|${MYSQL_PASSWORD_READONLY_APP}|g' \
+            /init-target-master/02-grants.sql.template > /init-target-master/02-grants.sql
+        
+        echo 'Processing SLAVE replication user template...'
+        sed -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
+            /init-target-slave/01-create-replication-user.sql.template > /init-target-slave/01-create-replication-user.sql
+        
+        echo 'Initialization scripts ready.'
     volumes:
       - ./db/master/mysql:/source-scripts-master:ro
       - ./db/slave:/source-scripts-slave:ro
