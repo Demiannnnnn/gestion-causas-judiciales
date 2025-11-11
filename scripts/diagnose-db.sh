@@ -25,77 +25,101 @@ set -a
 source .env
 set +a
 
+# Variables de seguridad
+MYSQL_MONITOR_USER="${MYSQL_MONITOR_USER:-monitor_user}"
+MYSQL_MONITOR_PASSWORD="${MYSQL_MONITOR_PASSWORD:-***REMOVED***}"
+MYSQL_MASTER_HOST="${MYSQL_MASTER_HOST:-db-master}"
+MYSQL_SLAVE_HOST="${MYSQL_SLAVE_HOST:-db-slave}"
+
 # Verificar que los contenedores estén corriendo
 echo -e "${YELLOW}1. Verificando estado de contenedores...${NC}"
 echo ""
-docker compose ps | grep -E "db-master|db-slave|db-proxy"
+docker compose ps 2>/dev/null | grep -E "db-master|db-slave|db-proxy" || echo -e "${YELLOW}(Usando docker ps como fallback)${NC}" && docker ps | grep -E "db-master|db-slave|db-proxy"
 echo ""
 
-# Verificar que db-master está healthy
-MASTER_STATUS=$(docker compose ps db-master --format json 2>/dev/null | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('Health', 'unknown'))" 2>/dev/null || echo "unknown")
-echo -e "Estado de db-master: ${MASTER_STATUS}"
-
-if [ "$MASTER_STATUS" != "healthy" ]; then
-    echo -e "${RED}❌ db-master NO está healthy${NC}"
-    echo ""
-    echo -e "${YELLOW}Logs de db-master:${NC}"
-    docker compose logs --tail=50 db-master
+# Verificar que db-master está healthy (si existe)
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${MYSQL_MASTER_HOST}$"; then
+    echo -e "${GREEN}✅ $MYSQL_MASTER_HOST está corriendo${NC}"
 else
-    echo -e "${GREEN}✅ db-master está healthy${NC}"
+    echo -e "${YELLOW}⚠️  $MYSQL_MASTER_HOST NO está corriendo (failover esperado)${NC}"
 fi
 echo ""
 
 # Verificar configuración del master
 echo -e "${YELLOW}2. Configuración del MASTER...${NC}"
 echo ""
-docker compose exec -T -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" db-master mysql -uroot -e "
-    SHOW VARIABLES LIKE 'server_id';
-    SHOW VARIABLES LIKE 'log_bin';
-    SHOW VARIABLES LIKE 'gtid_mode';
-    SHOW VARIABLES LIKE 'enforce_gtid_consistency';
-" 2>/dev/null || echo -e "${RED}❌ No se pudo conectar al master${NC}"
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${MYSQL_MASTER_HOST}$"; then
+    docker compose exec -T -e MYSQL_PWD="${MYSQL_MONITOR_PASSWORD}" $MYSQL_MASTER_HOST mysql -u$MYSQL_MONITOR_USER -e "
+        SHOW VARIABLES LIKE 'server_id';
+        SHOW VARIABLES LIKE 'log_bin';
+        SHOW VARIABLES LIKE 'gtid_mode';
+        SHOW VARIABLES LIKE 'enforce_gtid_consistency';
+    " 2>/dev/null || echo -e "${RED}❌ No se pudo conectar al master${NC}"
+else
+    echo -e "${YELLOW}⚠️  Master no está corriendo${NC}"
+fi
 echo ""
 
 # Ver el estado del master
 echo -e "${YELLOW}3. Estado del MASTER (binlog)...${NC}"
 echo ""
-docker compose exec -T -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" db-master mysql -uroot -e "
-    SHOW BINARY LOG STATUS\G
-" 2>/dev/null || echo -e "${RED}❌ No se pudo obtener el estado del master${NC}"
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${MYSQL_MASTER_HOST}$"; then
+    docker compose exec -T -e MYSQL_PWD="${MYSQL_MONITOR_PASSWORD}" $MYSQL_MASTER_HOST mysql -u$MYSQL_MONITOR_USER -e "
+        SHOW BINARY LOG STATUS\G
+    " 2>/dev/null || echo -e "${RED}❌ No se pudo obtener el estado del master${NC}"
+else
+    echo -e "${YELLOW}⚠️  Master no está corriendo${NC}"
+fi
 echo ""
 
 # Verificar usuarios de replicación
 echo -e "${YELLOW}4. Verificando usuarios de replicación...${NC}"
 echo ""
-docker compose exec -T -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" db-master mysql -uroot -e "
-    SELECT User, Host, plugin FROM mysql.user WHERE User IN ('replicator', 'monitor_user', 'appuser');
-" 2>/dev/null || echo -e "${RED}❌ No se pudo verificar usuarios${NC}"
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${MYSQL_MASTER_HOST}$"; then
+    docker compose exec -T -e MYSQL_PWD="${MYSQL_MONITOR_PASSWORD}" $MYSQL_MASTER_HOST mysql -u$MYSQL_MONITOR_USER -e "
+        SELECT User, Host, plugin FROM mysql.user WHERE User IN ('replicator', 'monitor_user', 'appuser');
+    " 2>/dev/null || echo -e "${RED}❌ No se pudo verificar usuarios${NC}"
+else
+    echo -e "${YELLOW}⚠️  Master no está corriendo${NC}"
+fi
 echo ""
 
 # Verificar permisos del usuario replicator
 echo -e "${YELLOW}5. Permisos del usuario replicator...${NC}"
 echo ""
-docker compose exec -T -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" db-master mysql -uroot -e "
-    SHOW GRANTS FOR 'replicator'@'%';
-" 2>/dev/null || echo -e "${RED}❌ Usuario replicator no existe o no tiene permisos${NC}"
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${MYSQL_MASTER_HOST}$"; then
+    docker compose exec -T -e MYSQL_PWD="${MYSQL_MONITOR_PASSWORD}" $MYSQL_MASTER_HOST mysql -u$MYSQL_MONITOR_USER -e "
+        SHOW GRANTS FOR 'replicator'@'%';
+    " 2>/dev/null || echo -e "${RED}❌ Usuario replicator no existe o no tiene permisos${NC}"
+else
+    echo -e "${YELLOW}⚠️  Master no está corriendo${NC}"
+fi
 echo ""
 
 # Verificar configuración del slave
 echo -e "${YELLOW}6. Configuración del SLAVE...${NC}"
 echo ""
-docker compose exec -T -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" db-slave mysql -uroot -e "
-    SHOW VARIABLES LIKE 'server_id';
-    SHOW VARIABLES LIKE 'gtid_mode';
-    SHOW VARIABLES LIKE 'read_only';
-" 2>/dev/null || echo -e "${RED}❌ No se pudo conectar al slave${NC}"
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${MYSQL_SLAVE_HOST}$"; then
+    docker compose exec -T -e MYSQL_PWD="${MYSQL_MONITOR_PASSWORD}" $MYSQL_SLAVE_HOST mysql -u$MYSQL_MONITOR_USER -e "
+        SHOW VARIABLES LIKE 'server_id';
+        SHOW VARIABLES LIKE 'gtid_mode';
+        SHOW VARIABLES LIKE 'read_only';
+    " 2>/dev/null || echo -e "${RED}❌ No se pudo conectar al slave${NC}"
+else
+    echo -e "${RED}❌ $MYSQL_SLAVE_HOST NO está corriendo${NC}"
+fi
 echo ""
 
 # Ver el estado de replicación del slave
 echo -e "${YELLOW}7. Estado de REPLICACIÓN en el SLAVE...${NC}"
 echo ""
-docker compose exec -T -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" db-slave mysql -uroot -e "
-    SHOW REPLICA STATUS\G
-" 2>/dev/null || echo -e "${RED}❌ No se pudo obtener el estado de replicación${NC}"
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${MYSQL_SLAVE_HOST}$"; then
+    docker compose exec -T -e MYSQL_PWD="${MYSQL_MONITOR_PASSWORD}" $MYSQL_SLAVE_HOST mysql -u$MYSQL_MONITOR_USER -e "
+        SHOW REPLICA STATUS\G
+    " 2>/dev/null || echo -e "${RED}❌ No se pudo obtener el estado de replicación${NC}"
+else
+    echo -e "${RED}❌ Slave no está corriendo${NC}"
+fi
 echo ""
 
 # Verificar conectividad entre slave y master

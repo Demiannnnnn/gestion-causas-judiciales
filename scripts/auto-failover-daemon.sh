@@ -27,7 +27,8 @@ if [ -f /config/.env ]; then
 fi
 
 # Variables
-MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-***REMOVED***}"
+MYSQL_MONITOR_USER="${MYSQL_MONITOR_USER:-monitor_user}"
+MYSQL_MONITOR_PASSWORD="${MYSQL_MONITOR_PASSWORD:-***REMOVED***}"
 PROXYSQL_ADMIN_USER="${PROXYSQL_ADMIN_USER:-admin}"
 PROXYSQL_ADMIN_PASSWORD="${PROXYSQL_ADMIN_PASSWORD:-admin}"
 MASTER_HOST="${MYSQL_MASTER_HOST:-db-master}"
@@ -77,8 +78,8 @@ check_master_health() {
     local checks_passed=0
     local checks_total=3
     
-    # Check 1: Ping del contenedor
-    if docker exec $MASTER_HOST mysqladmin -uroot -p"$MYSQL_ROOT_PASSWORD" ping >/dev/null 2>&1; then
+    # Check 1: Ping del contenedor (usar usuario monitor)
+    if docker exec $MASTER_HOST mysqladmin -u"$MYSQL_MONITOR_USER" -p"$MYSQL_MONITOR_PASSWORD" ping >/dev/null 2>&1; then
         ((checks_passed++))
     else
         log_warning "Master ping failed"
@@ -86,8 +87,8 @@ check_master_health() {
     fi
     
     # Check 2: Verificar que NO está en read-only (debe ser writable)
-    local read_only=$(docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" $MASTER_HOST \
-        mysql -uroot -NB -e "SELECT @@read_only;" 2>/dev/null)
+    local read_only=$(docker exec -e MYSQL_PWD="$MYSQL_MONITOR_PASSWORD" $MASTER_HOST \
+        mysql -u"$MYSQL_MONITOR_USER" -NB -e "SELECT @@read_only;" 2>/dev/null)
     
     if [ "$read_only" = "0" ]; then
         ((checks_passed++))
@@ -96,9 +97,9 @@ check_master_health() {
         return 1
     fi
     
-    # Check 3: Query simple debe funcionar
-    if docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" $MASTER_HOST \
-        mysql -uroot -NB -e "SELECT 1;" >/dev/null 2>&1; then
+    # Check 3: Query simple debe funcionar (usar usuario monitor)
+    if docker exec -e MYSQL_PWD="$MYSQL_MONITOR_PASSWORD" $MASTER_HOST \
+        mysql -u"$MYSQL_MONITOR_USER" -NB -e "SELECT 1;" >/dev/null 2>&1; then
         ((checks_passed++))
     else
         log_warning "Master query test failed"
@@ -114,19 +115,19 @@ check_master_health() {
 
 # Verificar si slave está saludable para promoción
 check_slave_health() {
-    # Check 1: Contenedor responde
-    if ! docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" $SLAVE_HOST \
-        mysql -uroot -NB -e "SELECT 1;" >/dev/null 2>&1; then
+    # Check 1: Contenedor responde (usar usuario monitor)
+    if ! docker exec -e MYSQL_PWD="$MYSQL_MONITOR_PASSWORD" $SLAVE_HOST \
+        mysql -u"$MYSQL_MONITOR_USER" -NB -e "SELECT 1;" >/dev/null 2>&1; then
         log_error "Slave no responde - cannot failover"
         return 1
     fi
     
-    # Check 2: Replicación está activa
-    local io_running=$(docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" $SLAVE_HOST \
-        mysql -uroot -NB -e "SELECT SERVICE_STATE FROM performance_schema.replication_connection_status LIMIT 1;" 2>/dev/null)
+    # Check 2: Replicación está activa (usar usuario monitor con permisos de REPLICATION CLIENT)
+    local io_running=$(docker exec -e MYSQL_PWD="$MYSQL_MONITOR_PASSWORD" $SLAVE_HOST \
+        mysql -u"$MYSQL_MONITOR_USER" -NB -e "SELECT SERVICE_STATE FROM performance_schema.replication_connection_status LIMIT 1;" 2>/dev/null)
     
-    local sql_running=$(docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" $SLAVE_HOST \
-        mysql -uroot -NB -e "SELECT SERVICE_STATE FROM performance_schema.replication_applier_status LIMIT 1;" 2>/dev/null)
+    local sql_running=$(docker exec -e MYSQL_PWD="$MYSQL_MONITOR_PASSWORD" $SLAVE_HOST \
+        mysql -u"$MYSQL_MONITOR_USER" -NB -e "SELECT SERVICE_STATE FROM performance_schema.replication_applier_status LIMIT 1;" 2>/dev/null)
     
     if [ "$io_running" = "ON" ] && [ "$sql_running" = "ON" ]; then
         log_info "Slave replication is healthy"

@@ -41,6 +41,7 @@ mysql_replication_hostgroups=
 mysql_servers=
 (
     { address="__MASTER_HOST__", port=3306, hostgroup=10, max_connections=100, max_replication_lag=5 },
+    { address="__MASTER_HOST__", port=3306, hostgroup=20, max_connections=100, max_replication_lag=5 },
     { address="__SLAVE_HOST__", port=3306, hostgroup=20, max_connections=100, max_replication_lag=5 }
 )
 
