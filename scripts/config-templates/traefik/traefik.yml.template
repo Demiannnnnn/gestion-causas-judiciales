@@ -1,0 +1,21 @@
+api:
+  insecure: __API_INSECURE__
+  dashboard: __DASHBOARD_ENABLED__
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: __NETWORK_NAME__
+
+log:
+  level: __LOG_LEVEL__
+
+accessLog:
+  filePath: "/var/log/traefik/access.log"

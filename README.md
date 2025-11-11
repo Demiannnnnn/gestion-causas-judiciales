@@ -994,3 +994,51 @@ Replica_SQL_Running: Yes
 ```
 
 Si es así, la base de datos está operando en modo de alta disponibilidad con replicación segura.
+---
+
+## 🚀 Sistema de Configuración Dinámica
+
+Este proyecto utiliza **contenedores Alpine Linux** para generar archivos de configuración dinámicamente desde templates, usando variables de entorno.
+
+### Configuración Rápida
+
+1. **Copia el archivo de ejemplo de variables:**
+```bash
+cp .env.example .env
+```
+
+2. **Edita las variables según tu entorno:**
+```bash
+nano .env  # O tu editor preferido
+```
+
+3. **Inicia el sistema (las configs se generan automáticamente):**
+```bash
+docker-compose up -d
+```
+
+### Gestión de Configuraciones
+
+Usa el script de gestión para controlar las configuraciones:
+
+```bash
+# Ver estado de inicialización
+./scripts/manage-configs.sh status
+
+# Ver logs de generación de configs
+./scripts/manage-configs.sh logs
+
+# Regenerar configuraciones después de cambiar .env
+./scripts/manage-configs.sh clean
+docker-compose up -d
+```
+
+### Servicios con Configuración Dinámica
+
+- **Prometheus** - Métricas y monitoreo
+- **Redis** - Caché con autenticación
+- **ProxySQL** - Routing de base de datos
+- **Traefik** - API Gateway
+
+📖 **Documentación completa:** [docs/CONFIG-INIT-SYSTEM.md](docs/CONFIG-INIT-SYSTEM.md)
+
