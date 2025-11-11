@@ -186,9 +186,6 @@ CREATE FULLTEXT INDEX ft_parte_nombre ON Parte(nombre);
 -- ============================================================
 
 
--- ============================================================
---  USUARIO DE PRUEBA INICIAL
--- Contraseña: Admin123!
--- ============================================================
+
 INSERT INTO `Usuario` (`nombre`, `correo`, `password_hash`, `rol`, `activo`) VALUES
 ('Admin Principal', 'admin@judicial.cl', '$2b$12$PEm.9URVdnDqQELR7Zh0x.kH.vaK96CSW6KvfddCE3pNQYcIJasHW', 'ADMINISTRADOR', 1);

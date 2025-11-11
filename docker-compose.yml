@@ -71,16 +71,19 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
-      - "--serversTransport.forwardingTimeouts.dialTimeout=30s"
-      - "--serversTransport.forwardingTimeouts.responseHeaderTimeout=30s"
-      - "--serversTransport.forwardingTimeouts.idleConnTimeout=30s"
+      - "--serversTransport.forwardingTimeouts.dialTimeout=180s"
+      - "--serversTransport.forwardingTimeouts.responseHeaderTimeout=180s"
+      - "--serversTransport.forwardingTimeouts.idleConnTimeout=180s"
+      - "--accesslog=true"
+      - "--log.level=DEBUG"
     ports:
       - "8081:80"
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - app-network
+      - frontend-network
+      - backend-network
     restart: unless-stopped
     depends_on:
       config-init-traefik:
@@ -90,36 +93,38 @@ services:
     image: alpine:latest
     container_name: db-init
     env_file: .env
-    command: sh -c "
-      apk add --no-cache sed &&
-      echo 'Copying MASTER scripts...' &&
-      cp /source-scripts-master/01-schema.sql /init-target-master/ &&
-      cp /source-scripts-master/02-grants.sql.template /init-target-master/ &&
-      cp /source-scripts-master/03-triggers.sql /init-target-master/ &&
-
-      echo 'Copying SLAVE scripts...' &&
-      cp /source-scripts-slave/init-slave.sh /init-target-slave/ &&
-      cp /source-scripts-slave/01-create-replication-user.sql.template /init-target-slave/ &&
-
-      echo 'Processing MASTER grants template...' &&
-      sed -e 's|__MYSQL_DATABASE__|${MYSQL_DATABASE}|g' \
-          -e 's|__MYSQL_MONITOR_PASSWORD__|${MYSQL_MONITOR_PASSWORD}|g' \
-          -e 's|__MYSQL_MONITOR_USER__|${MYSQL_MONITOR_USER}|g' \
-          -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
-          -e 's|__MYSQL_PASSWORD__|${MYSQL_PASSWORD}|g' \
-          -e 's|__MYSQL_PASSWORD_ADMIN_APP__|${MYSQL_PASSWORD_ADMIN_APP}|g' \
-          -e 's|__MYSQL_PASSWORD_ABOGADO_APP__|${MYSQL_PASSWORD_ABOGADO_APP}|g' \
-          -e 's|__MYSQL_PASSWORD_ASISTENTE_APP__|${MYSQL_PASSWORD_ASISTENTE_APP}|g' \
-          -e 's|__MYSQL_PASSWORD_SISTEMAS_APP__|${MYSQL_PASSWORD_SISTEMAS_APP}|g' \
-          -e 's|__MYSQL_PASSWORD_READONLY_APP__|${MYSQL_PASSWORD_READONLY_APP}|g' \
-          /init-target-master/02-grants.sql.template > /init-target-master/02-grants.sql &&
-
-      echo 'Processing SLAVE replication user template...' &&
-      sed -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
-          /init-target-slave/01-create-replication-user.sql.template > /init-target-slave/01-create-replication-user.sql &&
-
-      echo 'Initialization scripts ready.'
-      "
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache sed
+        echo 'Copying MASTER scripts...'
+        cp /source-scripts-master/01-schema.sql /init-target-master/
+        cp /source-scripts-master/02-grants.sql.template /init-target-master/
+        cp /source-scripts-master/03-triggers.sql /init-target-master/
+        
+        echo 'Copying SLAVE scripts...'
+        cp /source-scripts-slave/init-slave.sh /init-target-slave/
+        cp /source-scripts-slave/01-create-replication-user.sql.template /init-target-slave/
+        
+        echo 'Processing MASTER grants template...'
+        sed -e 's|__MYSQL_DATABASE__|${MYSQL_DATABASE}|g' \
+            -e 's|__MYSQL_MONITOR_PASSWORD__|${MYSQL_MONITOR_PASSWORD}|g' \
+            -e 's|__MYSQL_MONITOR_USER__|${MYSQL_MONITOR_USER}|g' \
+            -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
+            -e 's|__MYSQL_PASSWORD__|${MYSQL_PASSWORD}|g' \
+            -e 's|__MYSQL_PASSWORD_ADMIN_APP__|${MYSQL_PASSWORD_ADMIN_APP}|g' \
+            -e 's|__MYSQL_PASSWORD_ABOGADO_APP__|${MYSQL_PASSWORD_ABOGADO_APP}|g' \
+            -e 's|__MYSQL_PASSWORD_ASISTENTE_APP__|${MYSQL_PASSWORD_ASISTENTE_APP}|g' \
+            -e 's|__MYSQL_PASSWORD_SISTEMAS_APP__|${MYSQL_PASSWORD_SISTEMAS_APP}|g' \
+            -e 's|__MYSQL_PASSWORD_READONLY_APP__|${MYSQL_PASSWORD_READONLY_APP}|g' \
+            /init-target-master/02-grants.sql.template > /init-target-master/02-grants.sql
+        
+        echo 'Processing SLAVE replication user template...'
+        sed -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
+            /init-target-slave/01-create-replication-user.sql.template > /init-target-slave/01-create-replication-user.sql
+        
+        echo 'Initialization scripts ready.'
     volumes:
       - ./db/master/mysql:/source-scripts-master:ro
       - ./db/slave:/source-scripts-slave:ro
@@ -152,7 +157,7 @@ services:
     ports:
       - "3307:3306"
     networks:
-      - app-network
+      - database-network
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
@@ -176,7 +181,8 @@ services:
       - "6033:6033" # MySQL traffic
       - "6032:6032" # Admin interface
     networks:
-      - app-network
+      - backend-network
+      - database-network
     restart: always
     depends_on:
       db-master:
@@ -219,7 +225,7 @@ services:
     ports:
       - "3308:3306"
     networks:
-      - app-network
+      - database-network
     restart: always
 
   redis:
@@ -232,7 +238,7 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - app-network
+      - cache-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
@@ -257,7 +263,7 @@ services:
     ports:
       - "6380:6379"
     networks:
-      - app-network
+      - cache-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
@@ -280,12 +286,15 @@ services:
       - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`)"
       - "traefik.http.middlewares.auth-strip.stripprefix.prefixes=/api/auth"
       - "traefik.http.routers.auth.middlewares=auth-strip"      
       - "traefik.http.services.auth.loadbalancer.server.port=8000"
     networks:
-      - app-network
+      - backend-network
+      - database-network
+      - cache-network
     restart: unless-stopped
     depends_on:
       db-master:
@@ -305,12 +314,17 @@ services:
       - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.casos.rule=PathPrefix(`/api/casos`)"
       - "traefik.http.middlewares.casos-strip.stripprefix.prefixes=/api/casos"
       - "traefik.http.routers.casos.middlewares=casos-strip"
       - "traefik.http.services.casos.loadbalancer.server.port=5001"
+      - "traefik.http.services.casos.loadbalancer.responseForwarding.flushInterval=1ms"
+      - "traefik.http.services.casos.loadbalancer.passhostheader=true"
     networks:
-      - app-network
+      - backend-network
+      - database-network
+      - cache-network
     restart: unless-stopped
     depends_on:
       db-master:
@@ -333,12 +347,14 @@ services:
       - documentos-uploads:/app/uploads
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.docs.rule=PathPrefix(`/api/documentos`)"
       - "traefik.http.middlewares.docs-strip.stripprefix.prefixes=/api/documentos"
       - "traefik.http.routers.docs.middlewares=docs-strip"
       - "traefik.http.services.docs.loadbalancer.server.port=8002"
     networks:
-      - app-network
+      - backend-network
+      - database-network
     restart: unless-stopped
     depends_on:
       db-master:
@@ -348,7 +364,7 @@ services:
     build:
       context: ./backend/notificaciones
     container_name: notificaciones
-    command: sh -c "gunicorn --bind 0.0.0.0:8003 app:app & python worker.py"
+    command: sh -c "gunicorn --bind 0.0.0.0:8003 --workers 2 --timeout 180 app:app & python worker.py"
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
@@ -362,9 +378,12 @@ services:
       - ./backend/notificaciones/app:/app
       - ./backend/common:/app/common
     networks:
-      - app-network
+      - backend-network
+      - database-network
+      - cache-network
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.notificaciones.rule=PathPrefix(`/api/notificaciones`)"
       - "traefik.http.middlewares.notificaciones-strip.stripprefix.prefixes=/api/notificaciones"
       - "traefik.http.routers.notificaciones.middlewares=notificaciones-strip"
@@ -372,6 +391,46 @@ services:
     depends_on:
       db-master:
         condition: service_started
+
+  ia-seguridad:
+    build:
+      context: ./backend/ia-seguridad
+    container_name: ia-seguridad
+    env_file: .env
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+    volumes:
+      - ./backend/ia-seguridad/app:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
+      - "traefik.http.routers.ia-seguridad.rule=PathPrefix(`/api/ia-seguridad`)"
+      - "traefik.http.routers.ia-seguridad.priority=100"
+      - "traefik.http.middlewares.ia-seguridad-strip.stripprefix.prefixes=/api/ia-seguridad"
+      - "traefik.http.routers.ia-seguridad.middlewares=ia-seguridad-strip"
+      - "traefik.http.services.ia-seguridad.loadbalancer.server.port=8005"
+    networks:
+      - backend-network
+      - monitoring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  cron:
+    build:
+      context: ./cron
+    container_name: cron
+    networks:
+      - backend-network
+    depends_on:
+      - notificaciones
+    restart: unless-stopped
 
   reportes:
     build:
@@ -386,18 +445,21 @@ services:
       - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.reportes.rule=PathPrefix(`/api/reportes`)"
       - "traefik.http.middlewares.reportes-strip.stripprefix.prefixes=/api/reportes"
       - "traefik.http.routers.reportes.middlewares=reportes-strip"
       - "traefik.http.services.reportes.loadbalancer.server.port=8004"
     networks:
-      - app-network
+      - backend-network
+      - database-network
 
   frontend:
     build:
       context: ./frontend
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_frontend-network"
       - "traefik.http.routers.frontend.rule=Host(`localhost`)"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
     volumes:
@@ -411,7 +473,8 @@ services:
     depends_on:
       - reportes
     networks:
-      - app-network
+      - frontend-network
+      - backend-network
     restart: unless-stopped
 
     deploy:
@@ -429,7 +492,7 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
     networks:
-      - app-network
+      - monitoring-network
     restart: unless-stopped
     depends_on:
       config-init-prometheus:
@@ -446,7 +509,7 @@ services:
     ports:
       - "3000:3000"
     networks:
-      - app-network
+      - monitoring-network
     restart: unless-stopped
     depends_on:
       - prometheus
@@ -458,7 +521,7 @@ services:
       - "1025:1025"
       - "8025:8025"
     networks:
-      - app-network
+      - backend-network
 
   backup-service:
     build:
@@ -474,7 +537,8 @@ services:
       - ./backups:/backups
       - documentos-uploads:/data/documentos:ro
     networks:
-      - app-network
+      - database-network
+      - monitoring-network
     depends_on:
       - db-master
     restart: unless-stopped
@@ -491,7 +555,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./.env:/config/.env:ro
     networks:
-      - app-network
+      - database-network
+      - monitoring-network
     depends_on:
       db-master:
         condition: service_started
@@ -513,7 +578,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./.env:/config/.env:ro
     networks:
-      - app-network
+      - database-network
+      - monitoring-network
     depends_on:
       db-master:
         condition: service_started
@@ -526,8 +592,35 @@ services:
       - failback  # Solo se inicia con: docker-compose --profile failback up
 
 networks:
-  app-network:
+  frontend-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  
+  backend-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+  
+  database-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/24
+  
+  cache-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/24
+  
+  monitoring-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.24.0.0/24
 
 volumes:
   mysql-master-data:

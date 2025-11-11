@@ -282,7 +282,7 @@ def marcar_leido(notif_id):
     """Marca una notificación como leída"""
     try:
         with db_manager.get_session() as session:
-            notificacion = session.query(Notificacion).filter_by(id=notif_id).first()
+            notificacion = session.query(Notificacion).filter_by(id_notificacion=notif_id).first()
 
             if not notificacion:
                 return jsonify({"error": "Notificación no encontrada"}), 404
@@ -292,6 +292,24 @@ def marcar_leido(notif_id):
 
     except Exception as e:
         logger.error(f"Error al marcar notificación como leída: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/<int:notif_id>", methods=["DELETE"])
+def eliminar_notificacion(notif_id):
+    """Elimina una notificación"""
+    try:
+        with db_manager.get_session() as session:
+            notificacion = session.query(Notificacion).filter_by(id_notificacion=notif_id).first()
+
+            if not notificacion:
+                return jsonify({"error": "Notificación no encontrada"}), 404
+
+            session.delete(notificacion)
+            return jsonify({"mensaje": "Notificación eliminada"}), 200
+
+    except Exception as e:
+        logger.error(f"Error al eliminar notificación: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 

@@ -34,9 +34,12 @@ const Layout = ({ children }) => {
                 <Link className="nav-link" to="/reportes">Reportes</Link>
               </li>
             </ul>
-            <div className="d-flex">
+            <div className="d-flex gap-2">
               {isLoggedIn ? (
-                <button className="btn btn-outline-secondary" onClick={handleLogout}>Logout</button>
+                <>
+                  <Link className="btn btn-outline-info" to="/ia-seguridad">Agente</Link>
+                  <button className="btn btn-outline-secondary" onClick={handleLogout}>Logout</button>
+                </>
               ) : (
                 <Link className="btn btn-outline-primary" to="/login">Login</Link>
               )}

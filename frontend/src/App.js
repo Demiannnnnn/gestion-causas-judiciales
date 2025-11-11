@@ -9,6 +9,7 @@ import CasoDetail from './components/CasoDetail'; // Importar el nuevo component
 import Documentos from './components/Documentos';
 import Notificaciones from './components/Notificaciones';
 import Reportes from './components/Reportes';
+import IASeguridad from './components/IASeguridad';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout'; // Importar el nuevo Layout
@@ -27,6 +28,7 @@ function App() {
           <Route path="/documentos" element={<ProtectedRoute><Documentos /></ProtectedRoute>} />
           <Route path="/notificaciones" element={<ProtectedRoute><Notificaciones /></ProtectedRoute>} />
           <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
+          <Route path="/ia-seguridad" element={<ProtectedRoute><IASeguridad /></ProtectedRoute>} />
         </Routes>
       </Layout>
     </Router>

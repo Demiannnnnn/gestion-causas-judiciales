@@ -37,9 +37,9 @@ class Causa(Base):
     descripcion = Column(Text)
     
     tribunal = relationship("Tribunal", back_populates="causas")
-    documentos = relationship("Documento", back_populates="causa")
-    movimientos = relationship("Movimiento", back_populates="causa")
-    partes = relationship('CausaParte', back_populates='causa')
+    documentos = relationship("Documento", back_populates="causa", cascade="all, delete-orphan")
+    movimientos = relationship("Movimiento", back_populates="causa", cascade="all, delete-orphan")
+    partes = relationship('CausaParte', back_populates='causa', cascade="all, delete-orphan")
 
     def to_json(self):
         return {
