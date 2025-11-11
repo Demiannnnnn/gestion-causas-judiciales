@@ -1,0 +1,57 @@
+datadir="/var/lib/proxysql"
+
+admin_variables=
+{
+    admin_credentials="__ADMIN_USER__:__ADMIN_PASSWORD__"
+    mysql_ifaces="0.0.0.0:6032"
+    refresh_interval=2000
+}
+
+mysql_variables=
+{
+    threads=4
+    max_connections=2048
+    default_query_delay=0
+    default_query_timeout=36000000
+    have_compress=true
+    poll_timeout=2000
+    interfaces="0.0.0.0:6033"
+    default_schema="__DEFAULT_DB__"
+    stacksize=1048576
+    server_version="8.0.0"
+    connect_timeout_server=10000
+    monitor_username="__MONITOR_USER__"
+    ***REMOVED***="__MONITOR_PASSWORD__"
+    monitor_history=60000
+    monitor_connect_interval=60000
+    monitor_ping_interval=10000
+    ping_interval_server_msec=10000
+    ping_timeout_server=200
+    commands_stats=true
+    sessions_sort=true
+    monitor_galera_healthcheck_interval=2000
+    monitor_replication_lag_interval=86400000
+}
+
+mysql_replication_hostgroups=
+(
+    { writer_hostgroup=10, reader_hostgroup=20, comment="MySQL Replication" }
+)
+
+mysql_servers=
+(
+    { address="__MASTER_HOST__", port=3306, hostgroup=10, max_connections=100, max_replication_lag=5 },
+    { address="__MASTER_HOST__", port=3306, hostgroup=20, max_connections=100, max_replication_lag=5 },
+    { address="__SLAVE_HOST__", port=3306, hostgroup=20, max_connections=100, max_replication_lag=5 }
+)
+
+mysql_users=
+(
+    { username="__APP_USER__", password="__APP_PASSWORD__", default_hostgroup=10, active=1 }
+)
+
+mysql_query_rules=
+(
+    { rule_id=1, active=1, match_pattern="^SELECT.*FOR UPDATE", destination_hostgroup=10, apply=1 },
+    { rule_id=2, active=1, match_pattern="^SELECT", destination_hostgroup=20, apply=1 }
+)

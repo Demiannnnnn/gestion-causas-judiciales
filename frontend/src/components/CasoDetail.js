@@ -182,9 +182,10 @@ function CasoDetail() {
                 <label htmlFor="tipo" className="form-label">Tipo de Movimiento</label>
                 <select className="form-select" id="tipo" name="tipo" value={newMovimiento.tipo} onChange={handleMovimientoInputChange} required>
                   <option value="" disabled>Seleccione un tipo...</option>
-                  <option value="TRAMITE">Trámite</option>
+                  <option value="AUDIENCIA">Audiencia</option>
+                  <option value="RESOLUCIÓN">Resolución</option>
+                  <option value="SUSPENSIÓN">Suspensión</option>
                   <option value="VENCIMIENTO">Vencimiento</option>
-                  <option value="SENTENCIA">Sentencia</option>
                   <option value="OTRO">Otro</option>
                 </select>
               </div>
