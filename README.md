@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 🏛️ Sistema de Gestión de Causas Judiciales
 
 ## Información del Proyecto
