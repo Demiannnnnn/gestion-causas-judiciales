@@ -27,7 +27,7 @@ USER appuser
 EXPOSE 8003
 
 # Variables de entorno
-ENV FLASK_APP=app/app.py
+ENV FLASK_APP=app.py
 ENV FLASK_ENV=development
 
 # Health check

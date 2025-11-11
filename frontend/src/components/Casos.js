@@ -36,7 +36,7 @@ function Casos() {
     setNewCaso(prevState => ({ ...prevState, [name]: value }));
   };
 
-  const handleCreateCaso = (e) => {
+  const handleCreateCaso = async (e) => {
     e.preventDefault();
     const payload = {
         rit: newCaso.rit,
@@ -46,15 +46,21 @@ function Casos() {
         descripcion: newCaso.descripcion
     };
 
-    apiFetch('/api/casos', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
-      .then(() => {
+    try {
+        await apiFetch('/api/casos', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
         fetchCasos(); // Recargar la lista de casos
         setNewCaso({ rit: '', tribunal_id: '', fecha_inicio: '', estado: 'ACTIVA', descripcion: '' }); // Limpiar formulario
-      })
-      .catch(error => console.error('Error al crear caso:', error));
+    } catch (error) {
+        if (error.message.includes('409')) {
+            alert('Error al crear caso: Ya existe un caso con el mismo RIT.');
+        } else {
+            console.error('Error al crear caso:', error);
+            alert('Error al crear caso. Por favor, revise la consola para más detalles.');
+        }
+    }
   };
 
   const handleDeleteCaso = (id) => {
