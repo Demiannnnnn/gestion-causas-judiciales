@@ -13,6 +13,8 @@ class HealthMonitor:
     def __init__(self):
         self.docker_client = docker.from_env()
         self.baseline_metrics = {}
+        # Lista de contenedores esperados (se actualiza dinámicamente)
+        self.expected_containers = set()
     
     def check_container_health(self, container_name: str) -> Dict:
         """Verifica la salud de un contenedor específico"""
@@ -77,6 +79,20 @@ class HealthMonitor:
         
         return health_data
     
+    def update_expected_containers(self):
+        """Actualiza la lista de contenedores esperados basándose en los contenedores running y stopped"""
+        try:
+            # Obtener TODOS los contenedores (running + stopped + exited)
+            all_containers = self.docker_client.containers.list(all=True)
+            # Filtrar solo los contenedores que no son de inicialización (config-init, db-init)
+            self.expected_containers = {
+                c.name for c in all_containers 
+                if not c.name.startswith('config-init') and c.name != 'db-init'
+            }
+            logger.info(f"Contenedores esperados actualizados: {len(self.expected_containers)} contenedores")
+        except Exception as e:
+            logger.error(f"Error actualizando contenedores esperados: {str(e)}")
+    
     def detect_anomalies(self, container_names: List[str] = None) -> List[Dict]:
         """
         Detecta anomalías en el comportamiento de contenedores
@@ -89,15 +105,51 @@ class HealthMonitor:
         """
         anomalies = []
         
-        # Si no se especifican contenedores, obtener todos
-        if not container_names:
-            containers = self.docker_client.containers.list()
-            container_names = [c.name for c in containers]
+        # Actualizar lista de contenedores esperados
+        self.update_expected_containers()
         
+        # Si no se especifican contenedores, usar los esperados
+        if not container_names:
+            container_names = list(self.expected_containers)
+        
+        # Obtener contenedores actualmente en ejecución
+        running_containers = {c.name for c in self.docker_client.containers.list()}
+        
+        # Detectar contenedores caídos (esperados pero no running)
+        missing_containers = self.expected_containers - running_containers
+        for container_name in missing_containers:
+            try:
+                # Verificar el estado real del contenedor
+                container = self.docker_client.containers.get(container_name)
+                status = container.status
+                
+                anomalies.append({
+                    "type": "container_down",
+                    "container": container_name,
+                    "severity": "critical",
+                    "description": f"Contenedor {container_name} no está en ejecución (estado: {status})",
+                    "timestamp": datetime.now().isoformat()
+                })
+                logger.warning(f"Contenedor caído detectado: {container_name} (estado: {status})")
+            except docker.errors.NotFound:
+                anomalies.append({
+                    "type": "container_missing",
+                    "container": container_name,
+                    "severity": "critical",
+                    "description": f"Contenedor {container_name} no existe en el sistema",
+                    "timestamp": datetime.now().isoformat()
+                })
+                logger.warning(f"Contenedor faltante detectado: {container_name}")
+        
+        # Analizar contenedores en ejecución
+        # Analizar contenedores en ejecución
         for container_name in container_names:
+            if container_name not in running_containers:
+                continue  # Ya lo analizamos arriba como contenedor caído
+                
             health = self.check_container_health(container_name)
             
-            # Detectar contenedor caído
+            # Detectar contenedor en mal estado
             if health.get('status') not in ['running', 'restarting']:
                 anomalies.append({
                     "type": "container_down",
