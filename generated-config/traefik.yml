@@ -1,0 +1,27 @@
+api:
+  insecure: true
+  dashboard: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: proyectolicitacion_admin2025_2_backend-network
+
+log:
+  level: INFO
+
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+
+serversTransport:
+  forwardingTimeouts:
+    dialTimeout: 180s
+    responseHeaderTimeout: 180s
+    idleConnTimeout: 180s

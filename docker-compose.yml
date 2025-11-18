@@ -1,93 +1,26 @@
 services:
-  # Config initializers using Alpine
-  config-init-prometheus:
-    image: alpine:latest
-    container_name: config-init-prometheus
-    env_file: .env
-    environment:
-      - SCRAPE_INTERVAL=${PROMETHEUS_SCRAPE_INTERVAL:-15s}
-      - EVALUATION_INTERVAL=${PROMETHEUS_EVALUATION_INTERVAL:-15s}
-    volumes:
-      - ./scripts/config-templates/prometheus:/templates:ro
-      - ./scripts/init-prometheus.sh:/init.sh:ro
-      - prometheus-config:/config
-    command: sh /init.sh
-
-  config-init-traefik:
-    image: alpine:latest
-    container_name: config-init-traefik
-    env_file: .env
-    environment:
-      - API_INSECURE=${TRAEFIK_API_INSECURE:-true}
-      - DASHBOARD_ENABLED=${TRAEFIK_DASHBOARD_ENABLED:-true}
-      - NETWORK_NAME=app-network
-      - LOG_LEVEL=${TRAEFIK_LOG_LEVEL:-INFO}
-    volumes:
-      - ./scripts/config-templates/traefik:/templates:ro
-      - ./scripts/init-traefik.sh:/init.sh:ro
-      - traefik-config:/config
-    command: sh /init.sh
-
-  config-init-proxysql:
-    image: alpine:latest
-    container_name: config-init-proxysql
-    env_file: .env
-    environment:
-      - PROXYSQL_ADMIN_USER=${PROXYSQL_ADMIN_USER:-admin}
-      - PROXYSQL_ADMIN_PASSWORD=${PROXYSQL_ADMIN_PASSWORD:-admin}
-      - MYSQL_MONITOR_USER=${MYSQL_MONITOR_USER}
-      - MYSQL_MONITOR_PASSWORD=${MYSQL_MONITOR_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_MASTER_HOST=${MYSQL_MASTER_HOST:-db-master}
-      - MYSQL_SLAVE_HOST=${MYSQL_SLAVE_HOST:-db-slave}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-    volumes:
-      - ./scripts/config-templates/proxysql:/templates:ro
-      - ./scripts/init-proxysql.sh:/init.sh:ro
-      - proxysql-config:/config
-    command: sh /init.sh
-
-  config-init-redis:
-    image: alpine:latest
-    container_name: config-init-redis
-    env_file: .env
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_MAX_MEMORY=${REDIS_MAX_MEMORY:-256mb}
-      - REDIS_DATABASES=${REDIS_DATABASES:-16}
-    volumes:
-      - ./scripts/config-templates/redis:/templates:ro
-      - ./scripts/init-redis.sh:/init.sh:ro
-      - redis-config:/config
-    command: sh /init.sh
-
   #router
   gateway:
     image: traefik:v2.10  
     container_name: gateway    
     command:
-      - "--api.insecure=true"
       - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--serversTransport.forwardingTimeouts.dialTimeout=180s"
-      - "--serversTransport.forwardingTimeouts.responseHeaderTimeout=180s"
-      - "--serversTransport.forwardingTimeouts.idleConnTimeout=180s"
-      - "--accesslog=true"
-      - "--log.level=DEBUG"
+      - "--configfile=/etc/traefik/traefik.yml"
     ports:
-      - "8081:80"
+      - "80:80"
+      - "443:443"
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./generated-config/traefik.yml:/etc/traefik/traefik.yml:ro
+      # Mount a directory for dynamic configs (like certificates)
+      - ./api-gateway/config:/etc/traefik/conf:ro
+      # Mount directory with actual certificate files
+      - ./api-gateway/certs-local:/certs:ro
     networks:
       - frontend-network
       - backend-network
     restart: unless-stopped
-    depends_on:
-      config-init-traefik:
-        condition: service_completed_successfully
 
   db-init:
     image: alpine:latest
@@ -175,7 +108,7 @@ services:
     container_name: db-proxy
     env_file: .env
     volumes:
-      - proxysql-config:/etc/proxysql:ro
+      - ./generated-config/proxysql.cnf:/etc/proxysql/proxysql.cnf:ro
       - proxysql-data:/var/lib/proxysql
     ports:
       - "6033:6033" # MySQL traffic
@@ -189,8 +122,6 @@ services:
         condition: service_healthy
       db-slave:
         condition: service_started
-      config-init-proxysql:
-        condition: service_completed_successfully
 
   db-slave:
     build:
@@ -231,10 +162,10 @@ services:
   redis:
     image: redis:7-alpine    
     container_name: redis
-    command: redis-server /config/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - redis-data:/data
-      - redis-config:/config:ro
+      - ./generated-config/redis.conf:/usr/local/etc/redis/redis.conf:ro
     ports:
       - "6379:6379"
     networks:
@@ -245,21 +176,16 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-    depends_on:
-      config-init-redis:
-        condition: service_completed_successfully
 
   redis-replica:
     image: redis:7-alpine
     container_name: redis-replica
-    command: redis-server /config/redis.conf --replicaof redis 6379
+    command: redis-server /usr/local/etc/redis/redis.conf --replicaof redis 6379
     volumes:
-      - redis-config:/config:ro
+      - ./generated-config/redis.conf:/usr/local/etc/redis/redis.conf:ro
     depends_on:
       redis:
         condition: service_healthy
-      config-init-redis:
-        condition: service_completed_successfully
     ports:
       - "6380:6379"
     networks:
@@ -458,9 +384,28 @@ services:
     build:
       context: ./frontend
     labels:
+      # Enable Traefik for this service
       - "traefik.enable=true"
       - "traefik.docker.network=proyectolicitacion_admin2025_2_frontend-network"
-      - "traefik.http.routers.frontend.rule=Host(`localhost`)"
+
+      # --- HTTP Router ---
+      # Rule to catch HTTP traffic for localhost
+      - "traefik.http.routers.frontend-http.rule=Host(`localhost`)"
+      # Define the entrypoint for this router (port 80)
+      - "traefik.http.routers.frontend-http.entrypoints=web"
+      # Define and apply middleware to redirect to HTTPS
+      - "traefik.http.routers.frontend-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
+      # --- HTTPS Router ---
+      # Rule to catch HTTPS traffic for localhost
+      - "traefik.http.routers.frontend-secure.rule=Host(`localhost`)"
+      # Define the entrypoint for this router (port 443)
+      - "traefik.http.routers.frontend-secure.entrypoints=websecure"
+      # Enable TLS (HTTPS) for this router
+      - "traefik.http.routers.frontend-secure.tls=true"
+      
+      # Define the backend service and port for Traefik to forward traffic to
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
     volumes:
       - ./frontend:/app
@@ -484,7 +429,7 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     volumes:
-      - prometheus-config:/etc/prometheus:ro
+      - ./generated-config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
@@ -494,9 +439,7 @@ services:
     networks:
       - monitoring-network
     restart: unless-stopped
-    depends_on:
-      config-init-prometheus:
-        condition: service_completed_successfully
+
 
   grafana:
     image: grafana/grafana:latest
