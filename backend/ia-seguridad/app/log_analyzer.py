@@ -5,6 +5,7 @@ import os
 import logging
 from datetime import datetime, timedelta
 import re
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,11 @@ class LogAnalyzer:
     def __init__(self):
         self.docker_client = docker.from_env()
         
+        # Rate limiting para Gemini Free Tier: 15 RPM
+        self.last_request_time = 0
+        self.min_request_interval = 5  # 5 segundos entre requests = 12 RPM (deja margen)
+        self.max_containers_per_batch = 5  # Analizar máximo 5 contenedores a la vez
+        
         # Configurar Gemini
         gemini_api_key = os.getenv('GEMINI_API_KEY')
         if gemini_api_key:
@@ -22,6 +28,7 @@ class LogAnalyzer:
             # Usar gemini-2.0-flash-lite que tiene más requests gratuitos
             self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-lite')
             logger.info("Gemini configurado con modelo: gemini-2.0-flash-lite")
+            logger.info(f"Rate limiting activado: {self.min_request_interval}s entre requests, max {self.max_containers_per_batch} contenedores por lote")
         else:
             self.gemini_model = None
             logger.warning("GEMINI_API_KEY no configurada")
@@ -73,13 +80,28 @@ class LogAnalyzer:
         
         return 3600
     
+    def _rate_limit_wait(self):
+        """Espera el tiempo necesario para respetar rate limits"""
+        current_time = time.time()
+        time_since_last_request = current_time - self.last_request_time
+        
+        if time_since_last_request < self.min_request_interval:
+            wait_time = self.min_request_interval - time_since_last_request
+            logger.info(f"Rate limiting: esperando {wait_time:.2f}s antes de siguiente request")
+            time.sleep(wait_time)
+        
+        self.last_request_time = time.time()
+    
     def analyze_with_gemini(self, logs, container_name):
-        """Analiza logs usando Gemini AI"""
+        """Analiza logs usando Gemini AI con rate limiting"""
         if not self.gemini_model:
             # Modo de respaldo: análisis básico sin IA
             return self._basic_log_analysis(logs, container_name)
         
         try:
+            # RATE LIMITING: Esperar antes de hacer request
+            self._rate_limit_wait()
+            
             # Limitar tamaño de logs para enviar a la IA
             max_log_size = 10000
             if len(logs) > max_log_size:
@@ -262,10 +284,10 @@ Responde en formato estructurado y claro.
     
     def analyze_containers(self, container_names=None, since='1h', ai_provider='gemini'):
         """
-        Analiza logs de múltiples contenedores
+        Analiza logs de múltiples contenedores con rate limiting
         
         Args:
-            container_names: Lista de nombres de contenedores. Si está vacío, analiza todos
+            container_names: Lista de nombres de contenedores. Si está vacío, analiza solo los más importantes
             since: Tiempo atrás para obtener logs (1h, 30m, 24h)
             ai_provider: Proveedor de IA (gemini, openai)
         
@@ -273,20 +295,41 @@ Responde en formato estructurado y claro.
             dict con resultados del análisis
         """
         try:
-            # Si no se especifican contenedores, obtener todos
+            # Si no se especifican contenedores, analizar solo los más críticos
             if not container_names:
-                containers = self.docker_client.containers.list()
-                container_names = [c.name for c in containers]
+                # Contenedores prioritarios para análisis automático
+                priority_containers = [
+                    'db-master', 'db-slave', 'proxysql',
+                    'redis', 'redis-replica',
+                    'gateway'
+                ]
+                
+                # Obtener todos los contenedores
+                all_containers = self.docker_client.containers.list()
+                all_container_names = [c.name for c in all_containers]
+                
+                # Filtrar solo los prioritarios que existan
+                container_names = [name for name in priority_containers if name in all_container_names]
+                
+                logger.info(f"Análisis automático: limitado a {len(container_names)} contenedores prioritarios")
+            
+            # LÍMITE DE LOTE: Analizar máximo N contenedores a la vez
+            if len(container_names) > self.max_containers_per_batch:
+                logger.warning(f"Solicitados {len(container_names)} contenedores, limitando a {self.max_containers_per_batch}")
+                container_names = container_names[:self.max_containers_per_batch]
             
             results = {
                 "containers_analyzed": [],
                 "critical_issues": [],
                 "warnings": [],
-                "summary": {}
+                "summary": {},
+                "rate_limited": len(container_names) > self.max_containers_per_batch
             }
             
-            for container_name in container_names:
-                logger.info(f"Analizando contenedor: {container_name}")
+            logger.info(f"Analizando {len(container_names)} contenedores con {ai_provider}")
+            
+            for i, container_name in enumerate(container_names, 1):
+                logger.info(f"[{i}/{len(container_names)}] Analizando contenedor: {container_name}")
                 
                 # Obtener logs
                 logs = self.get_container_logs(container_name, since)
@@ -307,7 +350,8 @@ Responde en formato estructurado y claro.
                 results["containers_analyzed"].append({
                     "name": container_name,
                     "analysis": analysis.get("analysis", ""),
-                    "log_size": len(logs)
+                    "log_size": len(logs),
+                    "mode": analysis.get("mode", "ai")
                 })
                 
                 # Agregar issues críticos
@@ -320,7 +364,11 @@ Responde en formato estructurado y claro.
                 "analyzed": len(results["containers_analyzed"]),
                 "critical_issues_found": len(results["critical_issues"]),
                 "warnings": len(results["warnings"]),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "rate_limit_info": {
+                    "min_interval_seconds": self.min_request_interval,
+                    "max_batch_size": self.max_containers_per_batch
+                }
             }
             
             return results
