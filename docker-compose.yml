@@ -77,8 +77,8 @@ services:
       - "--accesslog=true"
       - "--log.level=DEBUG"
     ports:
-      - "8081:80"
-      - "8080:8080"
+      - "8091:80"
+      - "8090:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
@@ -460,7 +460,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proyectolicitacion_admin2025_2_frontend-network"
-      - "traefik.http.routers.frontend.rule=Host(`localhost`)"
+      - "traefik.http.routers.frontend.rule=Host(`petscloud.cl`) || Host(`localhost`)"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
     volumes:
       - ./frontend:/app
@@ -591,12 +591,28 @@ services:
     profiles:
       - failback  # Solo se inicia con: docker-compose --profile failback up
 
+  # Cloudflare Tunnel
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflare/config.yml:/etc/cloudflared/config.yml:ro
+      - ./cloudflare/credentials.json:/etc/cloudflared/credentials.json:ro
+    networks:
+      - frontend-network
+      - monitoring-network
+    depends_on:
+      - gateway
+      - grafana
+    restart: unless-stopped
+
 networks:
   frontend-network:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/24
+        - subnet: 172.25.0.0/24
   
   backend-network:
     driver: bridge

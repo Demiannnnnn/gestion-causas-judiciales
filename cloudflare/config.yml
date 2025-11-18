@@ -1,0 +1,12 @@
+tunnel: 8c14020e-f552-462d-846c-6822c2237023
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # Ruta principal - Frontend
+  - hostname: petscloud.cl
+    service: http://gateway:80
+    originRequest:
+      noTLSVerify: true
+
+  # Catch-all rule (required)
+  - service: http_status:404
