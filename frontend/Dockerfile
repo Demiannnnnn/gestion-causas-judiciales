@@ -1,25 +1,31 @@
-# DOCKERFILE del Frontend
+# Stage 1: Build the React application
+FROM node:16-alpine AS build
 
-# Usar una imagen base de Node.js para desarrollo
-FROM node:16-alpine
-
-# Establecer el directorio de trabajo
 WORKDIR /app
 
-# Copiar package.json y package-lock.json para instalar dependencias
+# Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Instalar las dependencias del proyecto
+# Install dependencies
 RUN npm install
 
-# Copiar el resto de los archivos de la aplicación
+# Copy the rest of the application source code
 COPY . .
 
-# Switch to the non-root user provided by the node image
-USER node
+# Build the production-ready static files
+RUN npm run build
 
-# Exponer el puerto 3000 para el servidor de desarrollo de React
-EXPOSE 3000
+# Stage 2: Serve the static files with Nginx
+FROM nginx:1.21-alpine
 
-# Comando para iniciar la aplicación en modo de desarrollo
-CMD ["npm", "start"]
+# Copy the static files from the build stage
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Copy the custom Nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port 80
+EXPOSE 80
+
+# Nginx is started by default by the base image.
+# The base nginx image already uses a non-root user.

@@ -400,20 +400,13 @@ services:
       # --- HTTPS Router ---
       # Rule to catch HTTPS traffic for localhost
       - "traefik.http.routers.frontend-secure.rule=Host(`localhost`)"
+      # Define the entrypoint for this router (port 443)
       - "traefik.http.routers.frontend-secure.entrypoints=websecure"
       # Enable TLS (HTTPS) for this router
       - "traefik.http.routers.frontend-secure.tls=true"
       
       # Define the backend service and port for Traefik to forward traffic to
-      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
-    volumes:
-      - ./frontend:/app
-      - frontend-node-modules:/app/node_modules
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - HOST=0.0.0.0
-    stdin_open: true
-    tty: true
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
     depends_on:
       - reportes
     networks:
