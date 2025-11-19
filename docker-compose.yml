@@ -400,7 +400,6 @@ services:
       # --- HTTPS Router ---
       # Rule to catch HTTPS traffic for localhost
       - "traefik.http.routers.frontend-secure.rule=Host(`localhost`)"
-      # Define the entrypoint for this router (port 443)
       - "traefik.http.routers.frontend-secure.entrypoints=websecure"
       # Enable TLS (HTTPS) for this router
       - "traefik.http.routers.frontend-secure.tls=true"
