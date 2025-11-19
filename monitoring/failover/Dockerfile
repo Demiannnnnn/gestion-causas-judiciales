@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM alpine:3.18
 
 # Instalar dependencias
 RUN apk add --no-cache bash mysql-client curl docker-cli

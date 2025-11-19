@@ -15,6 +15,9 @@ RUN npm install
 # Copiar el resto de los archivos de la aplicación
 COPY . .
 
+# Switch to the non-root user provided by the node image
+USER node
+
 # Exponer el puerto 3000 para el servidor de desarrollo de React
 EXPOSE 3000
 

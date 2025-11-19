@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
 
   db-init:
-    image: alpine:latest
+    image: alpine:3.18
     container_name: db-init
     env_file: .env
     command:
@@ -425,7 +425,7 @@ services:
       replicas: 2
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.47.2
     container_name: prometheus
     volumes:
       - ./generated-config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -441,7 +441,7 @@ services:
 
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.1.5
     container_name: grafana
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
