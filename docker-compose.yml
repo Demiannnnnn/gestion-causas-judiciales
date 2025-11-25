@@ -12,6 +12,23 @@ services:
       - ./scripts/init-prometheus.sh:/init.sh:ro
       - prometheus-config:/config
     command: sh /init.sh
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+        reservations:
+          cpus: '0.1'
+          memory: 16M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   config-init-traefik:
     image: alpine:latest
@@ -27,6 +44,23 @@ services:
       - ./scripts/init-traefik.sh:/init.sh:ro
       - traefik-config:/config
     command: sh /init.sh
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+        reservations:
+          cpus: '0.1'
+          memory: 16M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   config-init-proxysql:
     image: alpine:latest
@@ -47,6 +81,23 @@ services:
       - ./scripts/init-proxysql.sh:/init.sh:ro
       - proxysql-config:/config
     command: sh /init.sh
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+        reservations:
+          cpus: '0.1'
+          memory: 16M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   config-init-redis:
     image: alpine:latest
@@ -61,11 +112,28 @@ services:
       - ./scripts/init-redis.sh:/init.sh:ro
       - redis-config:/config
     command: sh /init.sh
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+        reservations:
+          cpus: '0.1'
+          memory: 16M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   #router
   gateway:
-    image: traefik:v2.10  
-    container_name: gateway    
+    image: traefik:v2.10
+    container_name: gateway
     command:
       - "--api.insecure=true"
       - "--providers.docker=true"
@@ -88,6 +156,25 @@ services:
     depends_on:
       config-init-traefik:
         condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   db-init:
     image: alpine:latest
@@ -102,11 +189,11 @@ services:
         cp /source-scripts-master/01-schema.sql /init-target-master/
         cp /source-scripts-master/02-grants.sql.template /init-target-master/
         cp /source-scripts-master/03-triggers.sql /init-target-master/
-        
+
         echo 'Copying SLAVE scripts...'
         cp /source-scripts-slave/init-slave.sh /init-target-slave/
         cp /source-scripts-slave/01-create-replication-user.sql.template /init-target-slave/
-        
+
         echo 'Processing MASTER grants template...'
         sed -e 's|__MYSQL_DATABASE__|${MYSQL_DATABASE}|g' \
             -e 's|__MYSQL_MONITOR_PASSWORD__|${MYSQL_MONITOR_PASSWORD}|g' \
@@ -119,17 +206,34 @@ services:
             -e 's|__MYSQL_PASSWORD_SISTEMAS_APP__|${MYSQL_PASSWORD_SISTEMAS_APP}|g' \
             -e 's|__MYSQL_PASSWORD_READONLY_APP__|${MYSQL_PASSWORD_READONLY_APP}|g' \
             /init-target-master/02-grants.sql.template > /init-target-master/02-grants.sql
-        
+
         echo 'Processing SLAVE replication user template...'
         sed -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
             /init-target-slave/01-create-replication-user.sql.template > /init-target-slave/01-create-replication-user.sql
-        
+
         echo 'Initialization scripts ready.'
     volumes:
       - ./db/master/mysql:/source-scripts-master:ro
       - ./db/slave:/source-scripts-slave:ro
       - db-master-init-scripts:/init-target-master # Monta el volumen del master
       - db-slave-init-scripts:/init-target-slave
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   db-master:
     build:
@@ -161,13 +265,35 @@ services:
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
-      interval: 10s    
+      interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     depends_on:
       db-init:
         condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
 
   db-proxy:
     build:
@@ -191,6 +317,28 @@ services:
         condition: service_started
       config-init-proxysql:
         condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "15m"
+        max-file: "4"
 
   db-slave:
     build:
@@ -227,9 +375,31 @@ services:
     networks:
       - database-network
     restart: always
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
 
   redis:
-    image: redis:7-alpine    
+    image: redis:7-alpine
     container_name: redis
     command: redis-server /config/redis.conf
     volumes:
@@ -248,6 +418,26 @@ services:
     depends_on:
       config-init-redis:
         condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis-replica:
     image: redis:7-alpine
@@ -270,6 +460,26 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   autenticacion:
     build:
@@ -277,7 +487,7 @@ services:
     container_name: autenticacion
     environment:
       - FLASK_APP=app.py
-      - FLASK_ENV=development 
+      - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
@@ -289,7 +499,7 @@ services:
       - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`)"
       - "traefik.http.middlewares.auth-strip.stripprefix.prefixes=/api/auth"
-      - "traefik.http.routers.auth.middlewares=auth-strip"      
+      - "traefik.http.routers.auth.middlewares=auth-strip"
       - "traefik.http.services.auth.loadbalancer.server.port=8000"
     networks:
       - backend-network
@@ -299,6 +509,23 @@ services:
     depends_on:
       db-master:
         condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   casos:
     build:
@@ -329,8 +556,24 @@ services:
     depends_on:
       db-master:
         condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     deploy:
       replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   documentos:
     build:
@@ -359,6 +602,23 @@ services:
     depends_on:
       db-master:
         condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   notificaciones:
     build:
@@ -388,9 +648,27 @@ services:
       - "traefik.http.middlewares.notificaciones-strip.stripprefix.prefixes=/api/notificaciones"
       - "traefik.http.routers.notificaciones.middlewares=notificaciones-strip"
       - "traefik.http.services.notificaciones.loadbalancer.server.port=8003"
+    restart: unless-stopped
     depends_on:
       db-master:
         condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ia-seguridad:
     build:
@@ -421,6 +699,23 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   cron:
     build:
@@ -431,6 +726,23 @@ services:
     depends_on:
       - notificaciones
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   reportes:
     build:
@@ -453,6 +765,24 @@ services:
     networks:
       - backend-network
       - database-network
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
     build:
@@ -461,7 +791,7 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=proyectolicitacion_admin2025_2_frontend-network"
       - "traefik.http.routers.frontend.rule=Host(`localhost`)"
-      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
     volumes:
       - ./frontend:/app
       - frontend-node-modules:/app/node_modules
@@ -476,9 +806,26 @@ services:
       - frontend-network
       - backend-network
     restart: unless-stopped
-
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     deploy:
       replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   prometheus:
     image: prom/prometheus:latest
@@ -497,6 +844,25 @@ services:
     depends_on:
       config-init-prometheus:
         condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "15m"
+        max-file: "4"
 
   grafana:
     image: grafana/grafana:latest
@@ -513,6 +879,27 @@ services:
     restart: unless-stopped
     depends_on:
       - prometheus
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   mailhog:
     image: mailhog/mailhog
@@ -522,6 +909,24 @@ services:
       - "8025:8025"
     networks:
       - backend-network
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backup-service:
     build:
@@ -542,6 +947,23 @@ services:
     depends_on:
       - db-master
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Auto-Failover Daemon
   failover-daemon:
@@ -565,6 +987,23 @@ services:
       db-proxy:
         condition: service_started
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Auto-Failback Daemon (opcional)
   failback-daemon:
@@ -590,6 +1029,23 @@ services:
     restart: unless-stopped
     profiles:
       - failback  # Solo se inicia con: docker-compose --profile failback up
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   frontend-network:
