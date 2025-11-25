@@ -19,3 +19,6 @@ cryptography
 
 # Manejo de fechas
 python-dateutil==2.8.2
+
+#jwt
+PyJWT==2.8.0
