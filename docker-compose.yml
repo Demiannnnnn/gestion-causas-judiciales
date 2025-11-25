@@ -65,6 +65,7 @@ services:
       - db-slave-init-scripts:/init-target-slave
 
   db-master:
+    image: proyectolicitacion_admin2025_2-db-master:1.0.0
     build:
       context: ./db/master
     container_name: db-master
@@ -103,6 +104,7 @@ services:
         condition: service_completed_successfully
 
   db-proxy:
+    image: proyectolicitacion_admin2025_2-db-proxy:1.0.0
     build:
       context: ./db/proxy
     container_name: db-proxy
@@ -259,6 +261,7 @@ services:
       replicas: 2
 
   documentos:
+    image: proyectolicitacion_admin2025_2-documentos:1.0.0
     build:
       context: ./backend/documentos
     container_name: documentos
@@ -359,6 +362,7 @@ services:
     restart: unless-stopped
 
   reportes:
+    image: proyectolicitacion_admin2025_2-reportes:1.0.0
     build:
       context: ./backend/reportes
     container_name: reportes
