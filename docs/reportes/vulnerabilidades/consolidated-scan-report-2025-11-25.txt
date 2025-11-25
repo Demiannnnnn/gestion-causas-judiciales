@@ -1,0 +1,12 @@
+
+
+--- Scanning: proyectolicitacion_admin2025_2-ia-seguridad:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-cron:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-reportes:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-frontend:latest ---
