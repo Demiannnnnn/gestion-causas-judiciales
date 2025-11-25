@@ -425,6 +425,8 @@ services:
     cap_add:
       - SETUID
       - SETGID
+      - CHOWN
+      - DAC_OVERRIDE
     deploy:
       resources:
         limits:
@@ -467,6 +469,8 @@ services:
     cap_add:
       - SETUID
       - SETGID
+      - CHOWN
+      - DAC_OVERRIDE
     deploy:
       resources:
         limits:
@@ -787,11 +791,12 @@ services:
   frontend:
     build:
       context: ./frontend
+      target: build
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proyectolicitacion_admin2025_2_frontend-network"
       - "traefik.http.routers.frontend.rule=Host(`localhost`)"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
     volumes:
       - ./frontend:/app
       - frontend-node-modules:/app/node_modules
@@ -800,6 +805,7 @@ services:
       - HOST=0.0.0.0
     stdin_open: true
     tty: true
+    command: npm start
     depends_on:
       - reportes
     networks:
@@ -810,8 +816,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    cap_add:
-      - NET_BIND_SERVICE
     deploy:
       replicas: 2
       resources:
