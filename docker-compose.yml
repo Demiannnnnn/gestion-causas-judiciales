@@ -242,7 +242,12 @@ services:
     security_opt:
       - no-new-privileges
     cap_drop:
-      - ALL    
+      - ALL  
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'  
 
   autenticacion:
     build:
@@ -276,6 +281,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   casos:
     build:
@@ -309,6 +319,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   documentos:
     image: proyectolicitacion_admin2025_2-documentos:1.0.0
@@ -342,6 +357,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   notificaciones:
     build:
@@ -378,6 +398,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   ia-seguridad:
     build:
@@ -412,6 +437,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   cron:
     build:
@@ -426,6 +456,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   reportes:
     image: proyectolicitacion_admin2025_2-reportes:1.0.0
@@ -453,6 +488,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   frontend:
     build:
@@ -493,6 +533,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   prometheus:
     image: prom/prometheus:v2.47.2
@@ -512,6 +557,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
 
   grafana:
@@ -533,6 +583,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   mailhog:
     image: mailhog/mailhog
@@ -546,6 +601,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   backup-service:
     build:
@@ -570,6 +630,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   # Auto-Failover Daemon
   failover-daemon:
@@ -597,6 +662,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   # Auto-Failback Daemon (opcional)
   failback-daemon:
@@ -626,6 +696,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
 networks:
   frontend-network:
