@@ -189,6 +189,10 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   redis-replica:
     image: redis:7-alpine
