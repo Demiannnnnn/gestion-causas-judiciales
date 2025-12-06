@@ -18,6 +18,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   db-init:
     image: alpine:3.18
