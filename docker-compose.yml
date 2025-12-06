@@ -60,15 +60,15 @@ services:
             /init-target-slave/01-create-replication-user.sql.template > /init-target-slave/01-create-replication-user.sql
         
         echo 'Initialization scripts ready.'
-    volumes:
-      - ./db/master/mysql:/source-scripts-master:ro
-      - ./db/slave:/source-scripts-slave:ro
-      - db-master-init-scripts:/init-target-master # Monta el volumen del master
-      - db-slave-init-scripts:/init-target-slave
     security_opt:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   db-master:
     image: proyectolicitacion_admin2025_2-db-master:1.0.0
