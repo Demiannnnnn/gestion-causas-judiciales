@@ -129,6 +129,10 @@ services:
         condition: service_healthy
       db-slave:
         condition: service_started
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   db-slave:
     build:
