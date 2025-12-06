@@ -478,6 +478,10 @@ services:
     networks:
       - monitoring-network
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
 
   grafana:
