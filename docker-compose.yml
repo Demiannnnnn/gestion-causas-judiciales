@@ -112,6 +112,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   db-proxy:
     image: proyectolicitacion_admin2025_2-db-proxy:1.0.0
