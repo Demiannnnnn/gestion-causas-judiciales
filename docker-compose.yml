@@ -536,6 +536,10 @@ services:
     depends_on:
       - db-master
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   # Auto-Failover Daemon
   failover-daemon:
