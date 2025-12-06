@@ -10,17 +10,14 @@ services:
       - "80:80"
       - "443:443"
       - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./generated-config/traefik.yml:/etc/traefik/traefik.yml:ro
-      # Mount a directory for dynamic configs (like certificates)
-      - ./api-gateway/config:/etc/traefik/conf:ro
-      # Mount directory with actual certificate files
-      - ./api-gateway/certs-local:/certs:ro
     networks:
       - frontend-network
       - backend-network
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   db-init:
     image: alpine:3.18
