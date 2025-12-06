@@ -63,7 +63,7 @@ services:
     volumes:
       - ./db/master/mysql:/source-scripts-master:ro
       - ./db/slave:/source-scripts-slave:ro
-      - db-master-init-scripts:/init-target-master # Monta el volumen del master
+      - db-master-init-scripts:/init-target-master
       - db-slave-init-scripts:/init-target-slave
     security_opt:
       - no-new-privileges
@@ -97,7 +97,7 @@ services:
       - --ssl-key=/etc/mysql/certs/server-key.pem
     volumes:
       - mysql-master-data:/var/lib/mysql
-      - db-master-init-scripts:/docker-entrypoint-initdb.d:ro # <- SOLO scripts del master
+      - db-master-init-scripts:/docker-entrypoint-initdb.d:ro
       - ./db/certs:/etc/mysql/certs:ro
     ports:
       - "3307:3306"
@@ -106,7 +106,7 @@ services:
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
-      interval: 10s    
+      interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
@@ -133,8 +133,8 @@ services:
       - ./generated-config/proxysql.cnf:/etc/proxysql/proxysql.cnf:ro
       - proxysql-data:/var/lib/proxysql
     ports:
-      - "6033:6033" # MySQL traffic
-      - "6032:6032" # Admin interface
+      - "6033:6033"
+      - "6032:6032"
     networks:
       - backend-network
       - database-network
@@ -182,7 +182,7 @@ services:
       - --ssl-key=/etc/mysql/certs/client-key.pem
     volumes:
       - mysql-slave-data:/var/lib/mysql
-      - db-slave-init-scripts:/docker-entrypoint-initdb.d:ro # <- SOLO script del slave
+      - db-slave-init-scripts:/docker-entrypoint-initdb.d:ro
       - ./db/certs:/etc/mysql/certs:ro
     networks:
       - database-network
@@ -198,7 +198,7 @@ services:
           memory: '256M'
 
   redis:
-    image: redis:7-alpine    
+    image: redis:7-alpine
     container_name: redis
     command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
@@ -247,7 +247,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: '256M'  
+          memory: '256M'
 
   autenticacion:
     build:
@@ -255,7 +255,7 @@ services:
     container_name: autenticacion
     environment:
       - FLASK_APP=app.py
-      - FLASK_ENV=development 
+      - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
@@ -267,7 +267,7 @@ services:
       - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`)"
       - "traefik.http.middlewares.auth-strip.stripprefix.prefixes=/api/auth"
-      - "traefik.http.routers.auth.middlewares=auth-strip"      
+      - "traefik.http.routers.auth.middlewares=auth-strip"
       - "traefik.http.services.auth.loadbalancer.server.port=8000"
     networks:
       - backend-network
@@ -313,16 +313,19 @@ services:
       - database-network
       - cache-network
     restart: unless-stopped
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
+    depends_on:
+      db-master:
+        condition: service_started
     deploy:
       replicas: 2
       resources:
         limits:
           cpus: '0.5'
           memory: '256M'
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   documentos:
     image: proyectolicitacion_admin2025_2-documentos:1.0.0
@@ -526,16 +529,16 @@ services:
       - frontend-network
       - backend-network
     restart: unless-stopped
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
     deploy:
       replicas: 2
       resources:
         limits:
           cpus: '0.5'
           memory: '256M'
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   prometheus:
     image: prom/prometheus:v2.47.2
