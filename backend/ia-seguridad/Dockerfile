@@ -17,11 +17,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código de la aplicación
 COPY ./app .
 
+# Crear usuario no privilegiado
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
 # Exponer puerto
 EXPOSE 8005
-
-# Nota: Se ejecuta como root para acceder al socket de Docker
-# El socket está montado en modo solo lectura (ro) para seguridad
 
 # Comando por defecto
 CMD ["python", "app.py"]
