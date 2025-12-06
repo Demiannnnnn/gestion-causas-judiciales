@@ -499,6 +499,10 @@ services:
     restart: unless-stopped
     depends_on:
       - prometheus
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   mailhog:
     image: mailhog/mailhog
