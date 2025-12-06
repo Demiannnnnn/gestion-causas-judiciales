@@ -381,6 +381,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   cron:
     build:
