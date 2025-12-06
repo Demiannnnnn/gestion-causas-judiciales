@@ -242,6 +242,10 @@ services:
     depends_on:
       db-master:
         condition: service_started
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   casos:
     build:
@@ -343,6 +347,10 @@ services:
     depends_on:
       db-master:
         condition: service_started
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   ia-seguridad:
     build:
