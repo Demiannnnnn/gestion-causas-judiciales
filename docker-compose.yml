@@ -526,13 +526,12 @@ services:
       - frontend-network
       - backend-network
     restart: unless-stopped
-    deploy:
-      replicas: 2
     security_opt:
       - no-new-privileges
     cap_drop:
       - ALL
     deploy:
+      replicas: 2
       resources:
         limits:
           cpus: '0.5'
