@@ -395,6 +395,10 @@ services:
     depends_on:
       - notificaciones
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   reportes:
     image: proyectolicitacion_admin2025_2-reportes:1.0.0
