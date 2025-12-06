@@ -103,6 +103,10 @@ services:
     depends_on:
       db-init:
         condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   db-proxy:
     image: proyectolicitacion_admin2025_2-db-proxy:1.0.0
