@@ -19,6 +19,10 @@ RUN chmod +x /app/scripts/*.sh
 # Crear directorio de backups
 RUN mkdir -p /backups
 
+# Crear usuario no privilegiado
+RUN adduser -D -u 1000 appuser
+USER appuser
+
 # Copiar el crontab
 COPY crontab /etc/crontabs/root
 
