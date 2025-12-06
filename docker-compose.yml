@@ -164,11 +164,13 @@ services:
       - mysql-slave-data:/var/lib/mysql
       - db-slave-init-scripts:/docker-entrypoint-initdb.d:ro # <- SOLO script del slave
       - ./db/certs:/etc/mysql/certs:ro
-    ports:
-      - "3308:3306"
     networks:
       - database-network
     restart: always
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   redis:
     image: redis:7-alpine    
