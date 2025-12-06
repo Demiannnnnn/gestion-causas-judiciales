@@ -143,6 +143,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   db-slave:
     build:
@@ -181,6 +186,11 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   redis:
     image: redis:7-alpine    
