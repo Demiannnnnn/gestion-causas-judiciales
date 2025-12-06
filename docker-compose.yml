@@ -512,6 +512,10 @@ services:
       - "8025:8025"
     networks:
       - backend-network
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   backup-service:
     build:
