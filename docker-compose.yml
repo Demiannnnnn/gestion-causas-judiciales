@@ -422,6 +422,10 @@ services:
     networks:
       - backend-network
       - database-network
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   frontend:
     build:
