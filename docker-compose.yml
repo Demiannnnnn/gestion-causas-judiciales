@@ -209,10 +209,10 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
+    security_opt:                                                    │
+      - no-new-privileges                                            │
+    cap_drop:                                                        │
+     - ALL    
 
   autenticacion:
     build:
@@ -242,6 +242,10 @@ services:
     depends_on:
       db-master:
         condition: service_started
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   casos:
     build:
@@ -274,6 +278,10 @@ services:
         condition: service_started
     deploy:
       replicas: 2
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   documentos:
     image: proyectolicitacion_admin2025_2-documentos:1.0.0
