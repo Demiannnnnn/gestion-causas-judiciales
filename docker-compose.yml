@@ -563,6 +563,10 @@ services:
       db-proxy:
         condition: service_started
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   # Auto-Failback Daemon (opcional)
   failback-daemon:
