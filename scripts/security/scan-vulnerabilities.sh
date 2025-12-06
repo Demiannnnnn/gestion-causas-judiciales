@@ -66,7 +66,7 @@ for SERVICE in $SERVICES; do
 
   # Run Trivy scan and append the output to the report file
   # Use "|| true" to continue even if vulnerabilities are found (which returns a non-zero exit code)
-  docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format table --no-progress --severity HIGH,CRITICAL "$IMAGE_NAME" >> "$REPORT_FILE" || true
+  docker run --rm -v ///var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format table --no-progress --severity HIGH,CRITICAL "$IMAGE_NAME" >> "$REPORT_FILE" || true
 done
 
 #docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format table --no-progress proyectolicitacion_admin2025_2-frontend:latest
