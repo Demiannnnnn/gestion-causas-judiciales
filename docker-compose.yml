@@ -60,6 +60,10 @@ services:
       - ./db/slave:/source-scripts-slave:ro
       - db-master-init-scripts:/init-target-master # Monta el volumen del master
       - db-slave-init-scripts:/init-target-slave
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   db-master:
     image: proyectolicitacion_admin2025_2-db-master:1.0.0
