@@ -3,6 +3,10 @@ FROM alpine:3.18
 # Instalar dependencias
 RUN apk add --no-cache bash mysql-client curl docker-cli
 
+# Crear usuario no privilegiado
+RUN adduser -D -u 1000 appuser
+USER appuser
+
 # Copiar scripts
 COPY scripts/auto-failover-daemon.sh /scripts/auto-failover-daemon.sh
 COPY scripts/auto-failback-daemon.sh /scripts/auto-failback-daemon.sh
