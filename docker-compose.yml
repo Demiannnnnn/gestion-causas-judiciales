@@ -273,9 +273,6 @@ services:
       - database-network
       - cache-network
     restart: unless-stopped
-    depends_on:
-      db-master:
-        condition: service_started
     deploy:
       replicas: 2
     security_opt:
@@ -459,6 +456,7 @@ services:
     networks:
       - frontend-network
       - backend-network
+    restart: unless-stopped
     deploy:
       replicas: 2
     security_opt:
