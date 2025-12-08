@@ -16,10 +16,12 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # Stage 2: Runtime
 FROM python:3.11-slim
 
+# Update OS packages
+RUN apt-get update && apt-get upgrade -y
+
 # Instalar solo librerías runtime necesarias (sin compiladores)
-RUN apt-get update && apt-get install -y \
+RUN apt-get install -y \
     default-libmysqlclient-dev \
-    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
