@@ -10,14 +10,16 @@ services:
       - "80:80"
       - "443:443"
       - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./generated-config/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./api-gateway/certs-local:/certs:ro
     networks:
       - frontend-network
       - backend-network
     restart: unless-stopped
     security_opt:
       - no-new-privileges
-    cap_drop:
-      - ALL
     deploy:
       resources:
         limits:
@@ -113,10 +115,6 @@ services:
     depends_on:
       db-init:
         condition: service_completed_successfully
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
     deploy:
       resources:
         limits:
@@ -187,10 +185,6 @@ services:
     networks:
       - database-network
     restart: always
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
     deploy:
       resources:
         limits:
@@ -218,8 +212,6 @@ services:
       retries: 5
     security_opt:
       - no-new-privileges
-    cap_drop:
-      - ALL
     deploy:
       resources:
         limits:
@@ -258,7 +250,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     volumes:
@@ -266,8 +258,10 @@ services:
       - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
+      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
       - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`)"
+      - "traefik.http.routers.auth.entrypoints=websecure"
+      - "traefik.http.routers.auth.tls=true"
       - "traefik.http.middlewares.auth-strip.stripprefix.prefixes=/api/auth"
       - "traefik.http.routers.auth.middlewares=auth-strip"
       - "traefik.http.services.auth.loadbalancer.server.port=8000"
@@ -281,8 +275,6 @@ services:
         condition: service_started
     security_opt:
       - no-new-privileges
-    cap_drop:
-      - ALL
     deploy:
       resources:
         limits:
@@ -295,16 +287,19 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
       - SECRET_KEY=${CASOS_SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - REDIS_URL=redis://redis:6379/1
     volumes:
       - ./backend/casos/app:/app
       - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
+      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
       - "traefik.http.routers.casos.rule=PathPrefix(`/api/casos`)"
+      - "traefik.http.routers.casos.entrypoints=websecure"
+      - "traefik.http.routers.casos.tls=true"
       - "traefik.http.middlewares.casos-strip.stripprefix.prefixes=/api/casos"
       - "traefik.http.routers.casos.middlewares=casos-strip"
       - "traefik.http.services.casos.loadbalancer.server.port=5001"
@@ -337,7 +332,8 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - UPLOAD_FOLDER=/app/uploads
     volumes:
       - ./backend/documentos/app:/app
@@ -345,8 +341,10 @@ services:
       - documentos-uploads:/app/uploads
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
+      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
       - "traefik.http.routers.docs.rule=PathPrefix(`/api/documentos`)"
+      - "traefik.http.routers.docs.entrypoints=websecure"
+      - "traefik.http.routers.docs.tls=true"
       - "traefik.http.middlewares.docs-strip.stripprefix.prefixes=/api/documentos"
       - "traefik.http.routers.docs.middlewares=docs-strip"
       - "traefik.http.services.docs.loadbalancer.server.port=8002"
@@ -375,7 +373,8 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - REDIS_URL=redis://redis:6379/2
       - MAIL_SERVER=${MAIL_SERVER:-mailhog}
       - MAIL_PORT=${MAIL_PORT:-1025}
@@ -390,8 +389,10 @@ services:
       - cache-network
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
+      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
       - "traefik.http.routers.notificaciones.rule=PathPrefix(`/api/notificaciones`)"
+      - "traefik.http.routers.notificaciones.entrypoints=websecure"
+      - "traefik.http.routers.notificaciones.tls=true"
       - "traefik.http.middlewares.notificaciones-strip.stripprefix.prefixes=/api/notificaciones"
       - "traefik.http.routers.notificaciones.middlewares=notificaciones-strip"
       - "traefik.http.services.notificaciones.loadbalancer.server.port=8003"
@@ -410,19 +411,21 @@ services:
 
   ia-seguridad:
     build:
-      context: ./backend/ia-seguridad
+      context: ./backend
+      dockerfile: ia-seguridad/Dockerfile
     container_name: ia-seguridad
     env_file: .env
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
     volumes:
-      - ./backend/ia-seguridad/app:/app
       - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
+      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
       - "traefik.http.routers.ia-seguridad.rule=PathPrefix(`/api/ia-seguridad`)"
+      - "traefik.http.routers.ia-seguridad.entrypoints=websecure"
+      - "traefik.http.routers.ia-seguridad.tls=true"
       - "traefik.http.routers.ia-seguridad.priority=100"
       - "traefik.http.middlewares.ia-seguridad-strip.stripprefix.prefixes=/api/ia-seguridad"
       - "traefik.http.routers.ia-seguridad.middlewares=ia-seguridad-strip"
@@ -439,8 +442,6 @@ services:
       start_period: 40s
     security_opt:
       - no-new-privileges
-    cap_drop:
-      - ALL
     deploy:
       resources:
         limits:
@@ -474,14 +475,17 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     volumes:
       - ./backend/reportes/app:/app
       - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
+      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
       - "traefik.http.routers.reportes.rule=PathPrefix(`/api/reportes`)"
+      - "traefik.http.routers.reportes.entrypoints=websecure"
+      - "traefik.http.routers.reportes.tls=true"
       - "traefik.http.middlewares.reportes-strip.stripprefix.prefixes=/api/reportes"
       - "traefik.http.routers.reportes.middlewares=reportes-strip"
       - "traefik.http.services.reportes.loadbalancer.server.port=8004"
@@ -504,18 +508,15 @@ services:
     labels:
       # Enable Traefik for this service
       - "traefik.enable=true"
-      - "traefik.docker.network=proyectolicitacion_admin2025_2_frontend-network"
+      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
 
       # --- HTTP Router ---
       # Rule to catch HTTP traffic for localhost
       - "traefik.http.routers.frontend-http.rule=Host(`localhost`)"
       # Define the entrypoint for this router (port 80)
       - "traefik.http.routers.frontend-http.entrypoints=web"
-      # Define and apply middleware to redirect to HTTPS
-      - "traefik.http.routers.frontend-http.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-
-      # --- HTTPS Router ---
+      
+      # --- HTTPS Router (para cuando tengamos certificados) ---
       # Rule to catch HTTPS traffic for localhost
       - "traefik.http.routers.frontend-secure.rule=Host(`localhost`)"
       # Define the entrypoint for this router (port 443)
@@ -539,8 +540,6 @@ services:
           memory: '256M'
     security_opt:
       - no-new-privileges
-    cap_drop:
-      - ALL
 
   prometheus:
     image: prom/prometheus:v2.47.2

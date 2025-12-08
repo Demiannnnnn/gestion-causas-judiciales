@@ -11,15 +11,18 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copiar requirements
-COPY requirements.txt .
+COPY ia-seguridad/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código de la aplicación
-COPY ./app .
+# Copiar módulo común
+COPY common/ /app/common/
 
-# Crear usuario no privilegiado
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
+# Copiar código de la aplicación
+COPY ia-seguridad/app/ /app/
+
+# NOTA: Este servicio requiere acceso root para interactuar con Docker socket
+# Justificación técnica: ia-seguridad necesita acceso al daemon de Docker
+# para monitorear y analizar contenedores del sistema
 
 # Exponer puerto
 EXPOSE 8005

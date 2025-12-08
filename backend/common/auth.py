@@ -27,9 +27,10 @@ def token_required(f):
 
         try:
             # Decodificar el token usando la clave secreta
-            secret_key = os.getenv('SECRET_KEY')
+            # Priorizar JWT_SECRET_KEY, luego SECRET_KEY como fallback
+            secret_key = os.getenv('JWT_SECRET_KEY', os.getenv('SECRET_KEY'))
             if not secret_key:
-                logger.error("La SECRET_KEY no está configurada en el servidor.")
+                logger.error("La JWT_SECRET_KEY o SECRET_KEY no está configurada en el servidor.")
                 return jsonify({'message': 'Error de configuración del servidor.'}), 500
 
             data = jwt.decode(token, secret_key, algorithms=["HS256"])

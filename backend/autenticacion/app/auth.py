@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Configuración de JWT
-SECRET_KEY = os.getenv("SECRET_KEY", "El_Pescamelapixula")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "El_Pescamelapixula"))
 ALGORITHM = "HS256"
 
 
