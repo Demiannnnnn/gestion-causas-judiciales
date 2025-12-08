@@ -19,7 +19,9 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get upgrade -y
 
 RUN apt-get install -y \
-    default-libmysqlclient-dev 
+    default-libmysqlclient-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=builder /install /usr/local
