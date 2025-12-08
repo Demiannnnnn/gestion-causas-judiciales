@@ -10,6 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
+from common.auth import token_required
 
 app = Flask(__name__)
 CORS(app)
@@ -30,7 +31,8 @@ def health_check():
     return jsonify({"status": "healthy"})
 
 @app.route("/estadisticas", methods=["GET"])
-def get_estadisticas():
+@token_required
+def get_estadisticas(current_user):
     with db_manager.get_session() as session:
         total_casos = session.query(Causa).count()
         casos_activos = session.query(Causa).filter(Causa.estado == 'ACTIVA').count()
@@ -49,7 +51,8 @@ def get_estadisticas():
         })
 
 @app.route("/casos", methods=["GET"])
-def reporte_casos():
+@token_required
+def reporte_casos(current_user):
     """
     RF6.1: Generar reportes de estado de causas por tribunal o abogado.
     """
@@ -101,7 +104,8 @@ def reporte_casos():
 
 
 @app.route("/vencimientos", methods=["GET"])
-def reporte_vencimientos():
+@token_required
+def reporte_vencimientos(current_user):
     """
     RF6.2: Generar un reporte de vencimiento de plazos para los próximos 30 días.
     """
@@ -145,7 +149,8 @@ def reporte_vencimientos():
         return jsonify({"error": f"Error al generar el reporte: {e}"}), 500
 
 @app.route('/causa-history/<string:caso_rit>/pdf', methods=['GET'])
-def get_causa_history_pdf(caso_rit):
+@token_required
+def get_causa_history_pdf(current_user, caso_rit):
     """
     RF6.3: Exportar el historial completo de una causa en formato PDF.
     """

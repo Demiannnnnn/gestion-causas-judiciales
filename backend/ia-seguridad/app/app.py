@@ -9,6 +9,7 @@ import time
 from log_analyzer import LogAnalyzer
 from alert_manager import AlertManager
 from health_monitor import HealthMonitor
+from common.auth import token_required
 
 app = Flask(__name__)
 CORS(app)
@@ -46,7 +47,8 @@ def health_check():
 # ==================== ANÁLISIS DE LOGS ====================
 
 @app.route('/analyze/logs', methods=['POST'])
-def analyze_logs():
+@token_required
+def analyze_logs(current_user):
     """
     Analiza logs de contenedores específicos o todos
     
@@ -97,7 +99,8 @@ def analyze_logs():
 
 
 @app.route('/analyze/container/<container_name>', methods=['GET'])
-def analyze_specific_container(container_name):
+@token_required
+def analyze_specific_container(current_user, container_name):
     """Analiza un contenedor específico"""
     try:
         since = request.args.get('since', '1h')
@@ -128,7 +131,8 @@ def analyze_specific_container(container_name):
 # ==================== DETECCIÓN DE ANOMALÍAS ====================
 
 @app.route('/anomalies/detect', methods=['POST'])
-def detect_anomalies():
+@token_required
+def detect_anomalies(current_user):
     """
     Detecta anomalías en el comportamiento de los contenedores
     """
@@ -167,7 +171,8 @@ def detect_anomalies():
 # ==================== ALERTAS ====================
 
 @app.route('/alerts', methods=['GET'])
-def get_alerts():
+@token_required
+def get_alerts(current_user):
     """Obtiene todas las alertas"""
     try:
         severity = request.args.get('severity')
@@ -195,7 +200,8 @@ def get_alerts():
 
 
 @app.route('/alerts/<int:alert_id>/resolve', methods=['PUT'])
-def resolve_alert(alert_id):
+@token_required
+def resolve_alert(current_user, alert_id):
     """Marca una alerta como resuelta"""
     try:
         data = request.get_json() or {}
@@ -219,7 +225,8 @@ def resolve_alert(alert_id):
 # ==================== ESTADÍSTICAS ====================
 
 @app.route('/stats/system', methods=['GET'])
-def get_system_stats():
+@token_required
+def get_system_stats(current_user):
     """Obtiene estadísticas del sistema"""
     try:
         stats = health_monitor.get_system_stats()
@@ -238,7 +245,8 @@ def get_system_stats():
 
 
 @app.route('/stats/containers', methods=['GET'])
-def get_containers_health():
+@token_required
+def get_containers_health(current_user):
     """Obtiene el estado de salud de todos los contenedores"""
     try:
         health_data = health_monitor.check_all_containers()
@@ -293,7 +301,8 @@ def run_automatic_analysis():
 
 
 @app.route('/analysis/start', methods=['POST'])
-def start_automatic_analysis():
+@token_required
+def start_automatic_analysis(current_user):
     """Inicia el análisis automático"""
     global analysis_running
     
@@ -312,7 +321,8 @@ def start_automatic_analysis():
 
 
 @app.route('/analysis/stop', methods=['POST'])
-def stop_automatic_analysis():
+@token_required
+def stop_automatic_analysis(current_user):
     """Detiene el análisis automático"""
     global analysis_running
     analysis_running = False
@@ -326,7 +336,8 @@ def stop_automatic_analysis():
 # ==================== CONFIGURACIÓN ====================
 
 @app.route('/config', methods=['GET'])
-def get_config():
+@token_required
+def get_config(current_user):
     """Obtiene la configuración actual"""
     return jsonify({
         "success": True,

@@ -10,6 +10,7 @@ from flask_cors import CORS
 
 from common.database import db_manager
 from common.models import Notificacion, Usuario, Movimiento, Causa, CausaParte
+from common.auth import token_required
 
 app = Flask(__name__)
 CORS(app)
@@ -245,22 +246,19 @@ def generar_resumen_diario():
 
 
 @app.route("/", methods=["GET"])
-def get_notificaciones():
+@token_required
+def get_notificaciones(current_user):
     """
-    Obtiene todas las notificaciones (con filtros opcionales)
+    Obtiene todas las notificaciones (con filtros opcionales) para el usuario autenticado
 
     Query params:
-    - destinatario: filtrar por email
     - tipo: filtrar por tipo (vencimiento, movimiento, alerta, consolidado)
     - leido: filtrar por estado de lectura (true/false)
     """
     try:
         with db_manager.get_session() as session:
-            query = session.query(Notificacion)
+            query = session.query(Notificacion).filter_by(id_usuario=current_user['id_usuario'])
 
-            # Aplicar filtros
-            if request.args.get("destinatario"):
-                query = query.filter(Notificacion.destinatario == request.args.get("destinatario"))
             if request.args.get("tipo"):
                 query = query.filter(Notificacion.tipo == request.args.get("tipo"))
             if request.args.get("leido") is not None:
@@ -278,11 +276,15 @@ def get_notificaciones():
 
 
 @app.route("/<int:notif_id>/marcar-leido", methods=["PUT"])
-def marcar_leido(notif_id):
-    """Marca una notificación como leída"""
+@token_required
+def marcar_leido(current_user, notif_id):
+    """Marca una notificación como leída para el usuario autenticado"""
     try:
         with db_manager.get_session() as session:
-            notificacion = session.query(Notificacion).filter_by(id_notificacion=notif_id).first()
+            notificacion = session.query(Notificacion).filter_by(
+                id_notificacion=notif_id,
+                id_usuario=current_user['id_usuario']
+            ).first()
 
             if not notificacion:
                 return jsonify({"error": "Notificación no encontrada"}), 404
@@ -296,11 +298,15 @@ def marcar_leido(notif_id):
 
 
 @app.route("/<int:notif_id>", methods=["DELETE"])
-def eliminar_notificacion(notif_id):
-    """Elimina una notificación"""
+@token_required
+def eliminar_notificacion(current_user, notif_id):
+    """Elimina una notificación para el usuario autenticado"""
     try:
         with db_manager.get_session() as session:
-            notificacion = session.query(Notificacion).filter_by(id_notificacion=notif_id).first()
+            notificacion = session.query(Notificacion).filter_by(
+                id_notificacion=notif_id,
+                id_usuario=current_user['id_usuario']
+            ).first()
 
             if not notificacion:
                 return jsonify({"error": "Notificación no encontrada"}), 404

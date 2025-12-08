@@ -22,10 +22,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 64M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 16M
     logging:
       driver: "json-file"
@@ -57,10 +57,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 64M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 16M
     logging:
       driver: "json-file"
@@ -82,6 +82,11 @@ services:
       - MYSQL_SLAVE_HOST=${MYSQL_SLAVE_HOST:-db-slave}
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_PASSWORD_ADMIN_APP=${MYSQL_PASSWORD_ADMIN_APP}
+      - MYSQL_PASSWORD_ABOGADO_APP=${MYSQL_PASSWORD_ABOGADO_APP}
+      - MYSQL_PASSWORD_ASISTENTE_APP=${MYSQL_PASSWORD_ASISTENTE_APP}
+      - MYSQL_PASSWORD_SISTEMAS_APP=${MYSQL_PASSWORD_SISTEMAS_APP}
+      - MYSQL_PASSWORD_READONLY_APP=${MYSQL_PASSWORD_READONLY_APP}
     volumes:
       - ./scripts/config-templates/proxysql:/templates:ro
       - ./scripts/init-proxysql.sh:/init.sh:ro
@@ -97,10 +102,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 64M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 16M
     logging:
       driver: "json-file"
@@ -131,10 +136,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 64M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 16M
     logging:
       driver: "json-file"
@@ -144,7 +149,7 @@ services:
 
   #router
   gateway:
-    image: traefik:v2.10
+    image: traefik:v2.11.32
     container_name: gateway
     command:
       - "--api.insecure=true"
@@ -177,10 +182,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
+          cpus: "1.0"
           memory: 512M
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 128M
     logging:
       driver: "json-file"
@@ -236,10 +241,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 128M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 32M
     logging:
       driver: "json-file"
@@ -276,7 +281,11 @@ services:
       - database-network
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -296,10 +305,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'
+          cpus: "2.0"
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     logging:
       driver: "json-file"
@@ -341,10 +350,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
+          cpus: "1.0"
           memory: 1G
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 256M
     logging:
       driver: "json-file"
@@ -399,10 +408,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'
+          cpus: "2.0"
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     logging:
       driver: "json-file"
@@ -442,10 +451,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
+          cpus: "1.0"
           memory: 512M
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 128M
     logging:
       driver: "json-file"
@@ -486,10 +495,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
+          cpus: "1.0"
           memory: 512M
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 128M
     logging:
       driver: "json-file"
@@ -532,10 +541,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 128M
     logging:
       driver: "json-file"
@@ -549,11 +558,11 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=${DATABASE_URL}
-      - DATABASE_URL_ADMINISTRADOR=${DATABASE_URL_ADMINISTRADOR}
-      - DATABASE_URL_ABOGADO=${DATABASE_URL_ABOGADO}
-      - DATABASE_URL_ASISTENTE=${DATABASE_URL_ASISTENTE}
-      - DATABASE_URL_SISTEMAS=${DATABASE_URL_SISTEMAS}
+      - DATABASE_URL=mysql+pymysql://admin_db:${MYSQL_PASSWORD:-password}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP:-AdminApp}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP:-Abogado}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP:-Asistente}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP:-Sistemas}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
       - SECRET_KEY=${SECRET_KEY}
       - REDIS_URL=redis://redis:6379/1
     volumes:
@@ -584,10 +593,10 @@ services:
       replicas: 2
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 128M
     logging:
       driver: "json-file"
@@ -602,11 +611,12 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=${DATABASE_URL}
-      - DATABASE_URL_ADMINISTRADOR=${DATABASE_URL_ADMINISTRADOR}
-      - DATABASE_URL_ABOGADO=${DATABASE_URL_ABOGADO}
-      - DATABASE_URL_ASISTENTE=${DATABASE_URL_ASISTENTE}
-      - DATABASE_URL_SISTEMAS=${DATABASE_URL_SISTEMAS}
+      - DATABASE_URL=mysql+pymysql://admin_db:${MYSQL_PASSWORD:-password}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP:-AdminApp}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP:-Abogado}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP:-Asistente}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP:-Sistemas}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - SECRET_KEY=${SECRET_KEY}
       - UPLOAD_FOLDER=/app/uploads
     volumes:
       - ./backend/documentos/app:/app
@@ -633,10 +643,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 128M
     logging:
       driver: "json-file"
@@ -657,6 +667,7 @@ services:
       - DATABASE_URL_ABOGADO=${DATABASE_URL_ABOGADO}
       - DATABASE_URL_ASISTENTE=${DATABASE_URL_ASISTENTE}
       - DATABASE_URL_SISTEMAS=${DATABASE_URL_SISTEMAS}
+      - SECRET_KEY=${SECRET_KEY}
       - REDIS_URL=redis://redis:6379/2
       - MAIL_SERVER=${MAIL_SERVER:-mailhog}
       - MAIL_PORT=${MAIL_PORT:-1025}
@@ -687,10 +698,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 128M
     logging:
       driver: "json-file"
@@ -734,10 +745,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 128M
     logging:
       driver: "json-file"
@@ -761,10 +772,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 128M
         reservations:
-          cpus: '0.05'
+          cpus: "0.05"
           memory: 32M
     logging:
       driver: "json-file"
@@ -784,6 +795,7 @@ services:
       - DATABASE_URL_ABOGADO=${DATABASE_URL_ABOGADO}
       - DATABASE_URL_ASISTENTE=${DATABASE_URL_ASISTENTE}
       - DATABASE_URL_SISTEMAS=${DATABASE_URL_SISTEMAS}
+      - SECRET_KEY=${SECRET_KEY}
     volumes:
       - ./backend/reportes/app:/app
       - ./backend/common:/app/common
@@ -805,10 +817,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 128M
     logging:
       driver: "json-file"
@@ -819,23 +831,11 @@ services:
   frontend:
     build:
       context: ./frontend
-      target: build
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proyectolicitacion_admin2025_2_frontend-network"
       - "traefik.http.routers.frontend.rule=Host(`localhost`)"
-      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
-    volumes:
-      - ./frontend:/app
-      - frontend-node-modules:/app/node_modules
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - HOST=0.0.0.0
-    stdin_open: true
-    tty: true
-    command: npm start
-    depends_on:
-      - reportes
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
     networks:
       - frontend-network
       - backend-network
@@ -844,14 +844,19 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
     deploy:
       replicas: 2
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 128M
     logging:
       driver: "json-file"
@@ -868,8 +873,8 @@ services:
     ports:
       - "9090:9090"
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
     networks:
       - monitoring-network
     restart: unless-stopped
@@ -885,10 +890,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
+          cpus: "1.0"
           memory: 1G
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 256M
     logging:
       driver: "json-file"
@@ -922,10 +927,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 128M
     logging:
       driver: "json-file"
@@ -949,10 +954,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 128M
         reservations:
-          cpus: '0.05'
+          cpus: "0.05"
           memory: 32M
     logging:
       driver: "json-file"
@@ -986,10 +991,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 256M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 64M
     logging:
       driver: "json-file"
@@ -1026,10 +1031,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 128M
         reservations:
-          cpus: '0.05'
+          cpus: "0.05"
           memory: 32M
     logging:
       driver: "json-file"
@@ -1060,7 +1065,7 @@ services:
         condition: service_started
     restart: unless-stopped
     profiles:
-      - failback  # Solo se inicia con: docker-compose --profile failback up
+      - failback # Solo se inicia con: docker-compose --profile failback up
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1068,10 +1073,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 128M
         reservations:
-          cpus: '0.05'
+          cpus: "0.05"
           memory: 32M
     logging:
       driver: "json-file"
@@ -1085,25 +1090,25 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/24
-  
+
   backend-network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.21.0.0/24
-  
+
   database-network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.22.0.0/24
-  
+
   cache-network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.23.0.0/24
-  
+
   monitoring-network:
     driver: bridge
     ipam:
@@ -1118,7 +1123,7 @@ volumes:
   prometheus-data:
   prometheus-config:
   grafana-data:
-  frontend-node-modules:
+
   db-master-init-scripts: {}
   db-slave-init-scripts: {}
   redis-config:

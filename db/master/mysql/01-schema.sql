@@ -188,4 +188,7 @@ CREATE FULLTEXT INDEX ft_parte_nombre ON Parte(nombre);
 
 
 INSERT INTO `Usuario` (`nombre`, `correo`, `password_hash`, `rol`, `activo`) VALUES
-('Admin Principal', 'admin@judicial.cl', '$2b$12$PEm.9URVdnDqQELR7Zh0x.kH.vaK96CSW6KvfddCE3pNQYcIJasHW', 'ADMINISTRADOR', 1);
+('Admin Principal', 'admin@judicial.cl', '$2b$12$vPdBq1Q.Ol5HR4UEqkmYae8rMbveSheVmnVtZ.4khQWqMyGDctL.q', 'ADMINISTRADOR', 1),
+('Abogado Defensor', 'abogado@judicial.cl', '$2b$12$vPdBq1Q.Ol5HR4UEqkmYae8rMbveSheVmnVtZ.4khQWqMyGDctL.q', 'ABOGADO', 1),
+('Asistente Legal', 'asistente@judicial.cl', '$2b$12$vPdBq1Q.Ol5HR4UEqkmYae8rMbveSheVmnVtZ.4khQWqMyGDctL.q', 'ASISTENTE', 1),
+('Soporte Sistemas', 'sistemas@judicial.cl', '$2b$12$vPdBq1Q.Ol5HR4UEqkmYae8rMbveSheVmnVtZ.4khQWqMyGDctL.q', 'SISTEMAS', 1);
