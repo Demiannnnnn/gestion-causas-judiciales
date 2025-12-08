@@ -1,4 +1,5 @@
 #!/bin/sh
+echo "Script started"
 
 # Exit immediately if a command exits with a non-zero status.
 set -e
@@ -70,7 +71,7 @@ done
 
 # --- Dependency Scan (Trivy) ---
 echo "\n--- Scanning Python Dependencies (Trivy) ---\n" >> "$REPORT_FILE"
-find backend -name "requirements.txt" | while read -r req_file; do
+for req_file in backend/**/requirements.txt; do
   SERVICE_DIR=$(dirname "$req_file")
   echo "--- Scanning dependencies for: ${SERVICE_DIR} ---"
   printf "\n\n--- Dependencies for: ${SERVICE_DIR} ---\n" >> "$REPORT_FILE"
