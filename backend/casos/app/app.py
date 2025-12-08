@@ -8,6 +8,9 @@ import os
 from common.database import db_manager
 from common.models import Causa, Tribunal, Parte, CausaParte, Movimiento
 from common.auth import token_required
+from common.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ThatWasEpic')
@@ -116,7 +119,7 @@ def send_notification(data):
     try:
         requests.post("http://notificaciones:8003/send", json=data)
     except Exception as e:
-        print(f"Error sending notification: {e}")
+        logger.error(f"Error sending notification", exc_info=True)
 
 # Endpoint para eliminar un caso
 @app.route('/<int:id>', methods=['DELETE'])
@@ -212,7 +215,7 @@ def create_movimiento(current_user, id):
             try:
                 requests.post("http://notificaciones:8003/vencimientos")
             except Exception as e:
-                print(f"Error calling vencimientos endpoint: {e}")
+                logger.error(f"Error calling vencimientos endpoint", exc_info=True)
         
         return jsonify({'id_movimiento': nuevo_movimiento.id_movimiento}), 201
 
