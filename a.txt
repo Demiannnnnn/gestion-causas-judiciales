@@ -1,0 +1,14 @@
+Vulnerabilidades en imagen base MySQL (2% total - NO CONTROLABLE)
+urllib3 vulnerable en db-slave - 1%
+
+CVE en imagen base Oracle MySQL 9.7
+Requiere actualización de Oracle (fuera de nuestro control)
+gosu vulnerable en db-slave - 1%
+
+CVE en imagen base Oracle MySQL 9.7
+Requiere actualización de Oracle (fuera de nuestro control)
+2. Análisis adicional de vulnerabilidades (1%)
+❌ Escaneo de dependencias npm (npm audit)
+❌ Escaneo de dependencias Python (pip safety)
+❌ Escaneo de puertos (Nmap)
+❌ Análisis web (Nikto)

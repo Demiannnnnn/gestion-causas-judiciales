@@ -1,7 +1,15 @@
+# Configuración global de logs para todos los servicios
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+    compress: "true"
+
 services:
   #router
   gateway:
-    image: traefik:v2.10  
+    image: traefik:v2.10.7
     container_name: gateway    
     command:
       - "--providers.docker=true"
@@ -13,6 +21,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./generated-config/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./generated-config/dynamic-config.yml:/etc/traefik/dynamic/dynamic-config.yml:ro
       - ./api-gateway/certs-local:/certs:ro
     networks:
       - frontend-network
@@ -20,6 +29,7 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -27,7 +37,7 @@ services:
           memory: '256M'
 
   db-init:
-    image: alpine:3.18
+    image: alpine:3.18.12
     container_name: db-init
     env_file: .env
     command:
@@ -106,6 +116,7 @@ services:
     networks:
       - database-network
     restart: always
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
       interval: 10s
@@ -118,8 +129,11 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '2.0'
+          memory: '2G'
+        reservations:
           cpus: '0.5'
-          memory: '256M'
+          memory: '512M'
 
   db-proxy:
     image: proyectolicitacion_admin2025_2-db-proxy:1.0.0
@@ -188,11 +202,14 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '1.5'
+          memory: '1.5G'
+        reservations:
           cpus: '0.5'
-          memory: '256M'
+          memory: '512M'
 
   redis:
-    image: redis:7-alpine    
+    image: redis:7.4.1-alpine3.20
     container_name: redis
     command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
@@ -215,14 +232,18 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: '1.0'
+          memory: '512M'
+        reservations:
+          cpus: '0.25'
+          memory: '128M'
 
   redis-replica:
-    image: redis:7-alpine
+    image: redis:7.4.1-alpine3.20
     container_name: redis-replica
     command: redis-server /usr/local/etc/redis/redis.conf --replicaof redis 6379
     volumes:
+      - redis-replica-data:/data
       - ./generated-config/redis.conf:/usr/local/etc/redis/redis.conf:ro
     depends_on:
       redis:
@@ -236,7 +257,11 @@ services:
     security_opt:
       - no-new-privileges
     cap_drop:
-      - ALL  
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID  
     deploy:
       resources:
         limits:
@@ -263,13 +288,14 @@ services:
       - "traefik.http.routers.auth.entrypoints=websecure"
       - "traefik.http.routers.auth.tls=true"
       - "traefik.http.middlewares.auth-strip.stripprefix.prefixes=/api/auth"
-      - "traefik.http.routers.auth.middlewares=auth-strip"
+      - "traefik.http.routers.auth.middlewares=rate-limit-auth@file,security-headers@file,auth-strip"
       - "traefik.http.services.auth.loadbalancer.server.port=8000"
     networks:
       - backend-network
       - database-network
       - cache-network
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       db-master:
         condition: service_started
@@ -301,7 +327,7 @@ services:
       - "traefik.http.routers.casos.entrypoints=websecure"
       - "traefik.http.routers.casos.tls=true"
       - "traefik.http.middlewares.casos-strip.stripprefix.prefixes=/api/casos"
-      - "traefik.http.routers.casos.middlewares=casos-strip"
+      - "traefik.http.routers.casos.middlewares=rate-limit@file,security-headers@file,casos-strip"
       - "traefik.http.services.casos.loadbalancer.server.port=5001"
       - "traefik.http.services.casos.loadbalancer.responseForwarding.flushInterval=1ms"
       - "traefik.http.services.casos.loadbalancer.passhostheader=true"
@@ -346,7 +372,7 @@ services:
       - "traefik.http.routers.docs.entrypoints=websecure"
       - "traefik.http.routers.docs.tls=true"
       - "traefik.http.middlewares.docs-strip.stripprefix.prefixes=/api/documentos"
-      - "traefik.http.routers.docs.middlewares=docs-strip"
+      - "traefik.http.routers.docs.middlewares=rate-limit@file,security-headers@file,docs-strip"
       - "traefik.http.services.docs.loadbalancer.server.port=8002"
     networks:
       - backend-network
@@ -394,11 +420,12 @@ services:
       - "traefik.http.routers.notificaciones.entrypoints=websecure"
       - "traefik.http.routers.notificaciones.tls=true"
       - "traefik.http.middlewares.notificaciones-strip.stripprefix.prefixes=/api/notificaciones"
-      - "traefik.http.routers.notificaciones.middlewares=notificaciones-strip"
+      - "traefik.http.routers.notificaciones.middlewares=rate-limit@file,security-headers@file,notificaciones-strip"
       - "traefik.http.services.notificaciones.loadbalancer.server.port=8003"
     depends_on:
       db-master:
         condition: service_started
+    logging: *default-logging
     security_opt:
       - no-new-privileges
     cap_drop:
@@ -407,6 +434,9 @@ services:
       resources:
         limits:
           cpus: '0.5'
+          memory: '512M'
+        reservations:
+          cpus: '0.25'
           memory: '256M'
 
   ia-seguridad:
@@ -428,12 +458,13 @@ services:
       - "traefik.http.routers.ia-seguridad.tls=true"
       - "traefik.http.routers.ia-seguridad.priority=100"
       - "traefik.http.middlewares.ia-seguridad-strip.stripprefix.prefixes=/api/ia-seguridad"
-      - "traefik.http.routers.ia-seguridad.middlewares=ia-seguridad-strip"
+      - "traefik.http.routers.ia-seguridad.middlewares=rate-limit@file,security-headers@file,ia-seguridad-strip"
       - "traefik.http.services.ia-seguridad.loadbalancer.server.port=8005"
     networks:
       - backend-network
       - monitoring-network
     restart: unless-stopped
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
       interval: 30s
@@ -445,6 +476,9 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '1.5'
+          memory: '1G'
+        reservations:
           cpus: '0.5'
           memory: '256M'
 
@@ -487,7 +521,7 @@ services:
       - "traefik.http.routers.reportes.entrypoints=websecure"
       - "traefik.http.routers.reportes.tls=true"
       - "traefik.http.middlewares.reportes-strip.stripprefix.prefixes=/api/reportes"
-      - "traefik.http.routers.reportes.middlewares=reportes-strip"
+      - "traefik.http.routers.reportes.middlewares=rate-limit@file,security-headers@file,reportes-strip"
       - "traefik.http.services.reportes.loadbalancer.server.port=8004"
     networks:
       - backend-network
@@ -523,6 +557,8 @@ services:
       - "traefik.http.routers.frontend-secure.entrypoints=websecure"
       # Enable TLS (HTTPS) for this router
       - "traefik.http.routers.frontend-secure.tls=true"
+      # Apply security headers to frontend
+      - "traefik.http.routers.frontend-secure.middlewares=security-headers@file"
       
       # Define the backend service and port for Traefik to forward traffic to
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
@@ -532,12 +568,16 @@ services:
       - frontend-network
       - backend-network
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       replicas: 2
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: '1.0'
+          memory: '512M'
+        reservations:
+          cpus: '0.25'
+          memory: '128M'
     security_opt:
       - no-new-privileges
 
@@ -592,7 +632,7 @@ services:
           memory: '256M'
 
   mailhog:
-    image: mailhog/mailhog
+    image: mailhog/mailhog:v1.0.1
     container_name: mailhog
     ports:
       - "1025:1025"
@@ -632,6 +672,12 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
     deploy:
       resources:
         limits:
@@ -664,6 +710,9 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
     deploy:
       resources:
         limits:
@@ -698,6 +747,9 @@ services:
       - no-new-privileges
     cap_drop:
       - ALL
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
     deploy:
       resources:
         limits:
@@ -739,6 +791,7 @@ volumes:
   mysql-master-data:
   mysql-slave-data:
   redis-data:
+  redis-replica-data:
   documentos-uploads:
   prometheus-data:
   prometheus-config:
