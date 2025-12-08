@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import apiFetch from '../utils/api';
 
 const API_URL = 'http://localhost:8081/api';
 
@@ -16,10 +17,14 @@ function Notificaciones() {
     if (filtroTipo) url += `tipo=${filtroTipo}&`;
     if (filtroLeido) url += `leido=${filtroLeido}&`;
 
-    fetch(url)
-      .then(response => response.json())
+    apiFetch(url)
       .then(data => {
-        setNotificaciones(data);
+        if (Array.isArray(data)) {
+          setNotificaciones(data);
+        } else {
+          console.error('Formato de datos inválido:', data);
+          setNotificaciones([]);
+        }
         setLoading(false);
       })
       .catch(error => {
@@ -29,8 +34,7 @@ function Notificaciones() {
   }, [filtroTipo, filtroLeido]);
 
   const fetchStats = useCallback(() => {
-    fetch(`${API_URL}/notificaciones/stats`)
-      .then(response => response.json())
+    apiFetch(`${API_URL}/notificaciones/stats`)
       .then(data => setStats(data))
       .catch(error => console.error('Error al obtener estadísticas:', error));
   }, []);
@@ -43,10 +47,9 @@ function Notificaciones() {
 
 
   const marcarComoLeido = (id) => {
-    fetch(`${API_URL}/notificaciones/${id}/marcar-leido`, {
+    apiFetch(`${API_URL}/notificaciones/${id}/marcar-leido`, {
       method: 'PUT',
     })
-      .then(response => response.json())
       .then(() => {
         fetchNotificaciones();
         fetchStats();
@@ -56,7 +59,7 @@ function Notificaciones() {
 
   const eliminarNotificacion = (id) => {
     if (window.confirm('¿Está seguro de eliminar esta notificación?')) {
-      fetch(`${API_URL}/notificaciones/${id}`, {
+      apiFetch(`${API_URL}/notificaciones/${id}`, {
         method: 'DELETE',
       })
         .then(() => {

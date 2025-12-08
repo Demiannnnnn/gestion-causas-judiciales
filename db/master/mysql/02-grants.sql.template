@@ -17,6 +17,7 @@ GRANT SELECT, INSERT ON `__MYSQL_DATABASE__`.LogAccion TO 'abogado'@'%';
 -- Asistente
 CREATE USER IF NOT EXISTS 'asistente'@'%' IDENTIFIED WITH caching_sha2_password BY '__MYSQL_PASSWORD_ASISTENTE_APP__';
 GRANT SELECT ON `__MYSQL_DATABASE__`.* TO 'asistente'@'%';
+GRANT INSERT, UPDATE ON `__MYSQL_DATABASE__`.Causa TO 'asistente'@'%';
 GRANT INSERT ON `__MYSQL_DATABASE__`.Movimiento TO 'asistente'@'%';
 GRANT INSERT ON `__MYSQL_DATABASE__`.Documento TO 'asistente'@'%';
 GRANT INSERT ON `__MYSQL_DATABASE__`.Notificacion TO 'asistente'@'%';
