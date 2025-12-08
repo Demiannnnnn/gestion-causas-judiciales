@@ -208,6 +208,8 @@ services:
       - "6379:6379"
     networks:
       - cache-network
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
