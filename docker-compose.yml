@@ -197,28 +197,23 @@ services:
           cpus: '0.5'
           memory: '256M'
 
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    command: redis-server /usr/local/etc/redis/redis.conf
-    volumes:
-      - redis-data:/data
-      - ./generated-config/redis.conf:/usr/local/etc/redis/redis.conf:ro
-    ports:
-      - "6379:6379"
-    networks:
-      - cache-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
-    deploy:
+    redis:
+      image: redis:7-alpine    
+      container_name: redis
+      command: redis-server /usr/local/etc/redis/redis.conf
+      volumes:
+        - redis-data:/data
+        - ./generated-config/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      ports:
+        - "6379:6379"
+      networks:
+        - cache-network
+      restart: unless-stopped
+      healthcheck:
+        test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+        interval: 10s
+        timeout: 3s
+        retries: 5    deploy:
       resources:
         limits:
           cpus: '0.5'
