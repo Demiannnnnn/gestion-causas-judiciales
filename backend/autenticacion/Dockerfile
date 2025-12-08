@@ -1,13 +1,12 @@
 # Stage 1: Build dependencies
 FROM python:3.11-slim AS builder
 
-# Instalar dependencias de compilación
-RUN apt-get update && apt-get install -y \
-    gcc \
-    default-libmysqlclient-dev \
-    pkg-config \
-    && rm -rf /var/lib/apt/lists/*
+# Update OS packages
+RUN apt-get update && apt-get upgrade -y
 
+# Instalar dependencias de compilación
+RUN apt-get install -y \
+    gcc \
 WORKDIR /app
 
 # Instalar dependencias en un directorio temporal
