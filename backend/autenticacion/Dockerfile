@@ -7,8 +7,8 @@ RUN apt-get update && apt-get upgrade -y
 # Instalar dependencias de compilación
 RUN apt-get install -y \
     gcc \
-WORKDIR /app
-
+    && rm -rf /var/lib/apt/lists/*
+    
 # Instalar dependencias en un directorio temporal
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
@@ -22,6 +22,8 @@ RUN apt-get update && apt-get upgrade -y
 # Instalar solo librerías runtime necesarias (sin compiladores)
 RUN apt-get install -y \
     default-libmysqlclient-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copiar dependencias instaladas desde builder
