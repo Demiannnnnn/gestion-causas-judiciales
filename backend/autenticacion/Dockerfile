@@ -7,6 +7,8 @@ RUN apt-get update && apt-get upgrade -y
 # Instalar dependencias de compilación
 RUN apt-get install -y \
     gcc \
+    default-libmysqlclient-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
     
 # Instalar dependencias en un directorio temporal
