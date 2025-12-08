@@ -3,7 +3,7 @@ Flask==3.0.0
 requests==2.31.0
 
 #conexion entre front y back
-Flask-CORS==4.0.0
+Flask-CORS==4.0.2
 
 #sql
 SQLAlchemy==2.0.23
