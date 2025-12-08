@@ -837,6 +837,7 @@ networks:
 volumes:
   mysql-master-data:
   mysql-slave-data:
+  mysql-files-data:
   redis-data:
   redis-replica-data:
   documentos-uploads:
