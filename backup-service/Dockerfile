@@ -8,28 +8,31 @@ RUN apk add --no-cache \
     gzip \
     dcron \
     rsync \
-    dos2unix  # Add dos2unix
+    dos2unix
 
 # Crear directorio de trabajo
 WORKDIR /app
 
+# Crear usuario no privilegiado *before* using it in chown
+RUN adduser -D -u 1000 appuser
+
 # Copiar scripts de backup
 COPY scripts/ /app/scripts/
 RUN chmod +x /app/scripts/*.sh
-RUN dos2unix /app/scripts/*.sh # Convert line endings for all scripts
+RUN dos2unix /app/scripts/*.sh
 
 # Crear directorio de backups
 RUN mkdir -p /backups
+RUN mkdir -p /app/logs
+RUN chown -R appuser:appuser /app/logs
 
 # Script de inicio
 COPY entrypoint.sh /entrypoint.sh
-RUN dos2unix /entrypoint.sh # Convert line endings for entrypoint.sh
+RUN dos2unix /entrypoint.sh
 
 # Change permissions before switching user
 RUN chmod +x /entrypoint.sh
 
-# Crear usuario no privilegiado
-RUN adduser -D -u 1000 appuser
 USER appuser
 
 ENTRYPOINT ["/entrypoint.sh"]

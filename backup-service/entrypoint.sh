@@ -7,8 +7,8 @@ echo "  Iniciado: $(date)"
 echo "========================================"
 
 # Crear archivo de log
-touch /var/log/backup.log
-touch /var/log/backup-db.log
+touch /app/logs/backup.log
+touch /app/logs/backup-db.log
 
 # Iniciar cron en primer plano
 echo "Iniciando servicio cron..."
