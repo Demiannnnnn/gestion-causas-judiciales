@@ -29,6 +29,8 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges
+    cap_drop:
+      - ALL
     logging: *default-logging
     deploy:
       resources:
@@ -77,10 +79,18 @@ services:
       - ./db/slave:/source-scripts-slave:ro
       - db-master-init-scripts:/init-target-master
       - db-slave-init-scripts:/init-target-slave
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
     cap_add:
       - SETUID
       - SETGID
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   db-master:
     image: proyectolicitacion_admin2025_2-db-master:1.0.0
@@ -118,6 +128,10 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
     cap_add:
       - SETUID
       - SETGID
@@ -156,7 +170,15 @@ services:
         condition: service_healthy
       db-slave:
         condition: service_started
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   db-slave:
     build:
@@ -191,12 +213,15 @@ services:
     networks:
       - database-network
     restart: always
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
     cap_add:
       - SETUID
       - SETGID
       - SYS_NICE
       - IPC_LOCK
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
     deploy:
       resources:
         limits:
@@ -224,12 +249,13 @@ services:
       timeout: 3s
       retries: 5
     user: "redis" # Explicitly run as redis user
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
     cap_add:
       - SETUID
       - SETGID
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
-    security_opt:
-      - no-new-privileges
     deploy:
       resources:
         limits:
@@ -256,15 +282,14 @@ services:
       timeout: 3s
       retries: 5
     user: "redis" # Explicitly run as redis user
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
     security_opt:
       - no-new-privileges
     cap_drop:
-      - ALL
+      - ALL  
     cap_add:
       - CHOWN
       - SETUID
-      - SETGID  
+      - SETGID
     deploy:
       resources:
         limits:
@@ -304,6 +329,8 @@ services:
         condition: service_started
     security_opt:
       - no-new-privileges
+    cap_drop:
+      - ALL
     deploy:
       resources:
         limits:
@@ -342,7 +369,17 @@ services:
     depends_on:
       db-master:
         condition: service_started
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   documentos:
     image: proyectolicitacion_admin2025_2-documentos:1.0.0
@@ -375,7 +412,16 @@ services:
     depends_on:
       db-master:
         condition: service_started
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   notificaciones:
     build:
@@ -459,6 +505,8 @@ services:
       start_period: 40s
     security_opt:
       - no-new-privileges
+    cap_drop:
+      - ALL
     deploy:
       resources:
         limits:
@@ -477,7 +525,16 @@ services:
     depends_on:
       - notificaciones
     restart: unless-stopped
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   reportes:
     image: proyectolicitacion_admin2025_2-reportes:1.0.0
@@ -505,7 +562,16 @@ services:
       - backend-network
       - database-network
     restart: unless-stopped
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   frontend:
     build:
@@ -551,6 +617,8 @@ services:
           memory: '128M'
     security_opt:
       - no-new-privileges
+    cap_drop:
+      - ALL
 
   prometheus:
     image: prom/prometheus:v2.47.2
@@ -566,7 +634,16 @@ services:
     networks:
       - monitoring-network
     restart: unless-stopped
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
 
   grafana:
@@ -584,7 +661,16 @@ services:
     restart: unless-stopped
     depends_on:
       - prometheus
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   mailhog:
     image: mailhog/mailhog:v1.0.1
@@ -595,7 +681,16 @@ services:
     networks:
       - backend-network
     restart: unless-stopped
-    # Removed security hardening for testing purposes. Re-add if needed after core functionality is verified.
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
 
   backup-service:
     build:
@@ -654,6 +749,7 @@ services:
       db-proxy:
         condition: service_started
     restart: unless-stopped
+    logging: *default-logging
     security_opt:
       - no-new-privileges
     cap_drop:
@@ -691,6 +787,7 @@ services:
     restart: unless-stopped
     profiles:
       - failback  # Solo se inicia con: docker-compose --profile failback up
+    logging: *default-logging
     security_opt:
       - no-new-privileges
     cap_drop:
