@@ -13,23 +13,66 @@ import IASeguridad from './components/IASeguridad';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout'; // Importar el nuevo Layout
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   return (
     <Router>
       <Layout>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          
-          {/* Rutas Protegidas */}
-          <Route path="/casos" element={<ProtectedRoute><Casos /></ProtectedRoute>} />
-          <Route path="/casos/:id" element={<ProtectedRoute><CasoDetail /></ProtectedRoute>} /> {/* Nueva ruta */}
-          <Route path="/documentos" element={<ProtectedRoute><Documentos /></ProtectedRoute>} />
-          <Route path="/notificaciones" element={<ProtectedRoute><Notificaciones /></ProtectedRoute>} />
-          <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
-          <Route path="/ia-seguridad" element={<ProtectedRoute><IASeguridad /></ProtectedRoute>} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            
+                      {/* Rutas Protegidas */}
+                      <Route 
+                        path="/casos" 
+                        element={
+                          <ProtectedRoute allowedRoles={['ADMINISTRADOR', 'ABOGADO', 'ASISTENTE']}>
+                            <Casos />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/casos/:id" 
+                        element={
+                          <ProtectedRoute allowedRoles={['ADMINISTRADOR', 'ABOGADO', 'ASISTENTE']}>
+                            <CasoDetail />
+                          </ProtectedRoute>
+                        } 
+                      />
+                                          <Route 
+                                            path="/documentos" 
+                                            element={
+                                              <ProtectedRoute allowedRoles={['ADMINISTRADOR', 'ABOGADO', 'ASISTENTE']}>
+                                                <Documentos />
+                                              </ProtectedRoute>
+                                            } 
+                                          />
+                                          <Route 
+                                            path="/notificaciones" 
+                                            element={
+                                              <ProtectedRoute allowedRoles={['ADMINISTRADOR', 'ABOGADO', 'ASISTENTE']}>
+                                                <Notificaciones />
+                                              </ProtectedRoute>
+                                            } 
+                                          />                      <Route 
+                        path="/reportes" 
+                        element={
+                          <ProtectedRoute allowedRoles={['ADMINISTRADOR', 'SISTEMAS', 'ABOGADO']}>
+                            <Reportes />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/ia-seguridad" 
+                        element={
+                          <ProtectedRoute allowedRoles={['ADMINISTRADOR', 'SISTEMAS']}>
+                            <IASeguridad />
+                          </ProtectedRoute>
+                        } 
+                      />
+                    </Routes>        </ErrorBoundary>
       </Layout>
     </Router>
   );

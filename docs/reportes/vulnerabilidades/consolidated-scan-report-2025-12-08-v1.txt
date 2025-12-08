@@ -1,0 +1,56 @@
+Consolidated Vulnerability Report - Mon, Dec  8, 2025  8:15:33 AM
+===========================================
+
+
+--- Scanning: proyectolicitacion_admin2025_2-db-master:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-db-proxy:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-db-slave:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-autenticacion:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-casos:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-documentos:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-notificaciones:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-ia-seguridad:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-cron:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-reportes:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-frontend:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-backup-service:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-failover-daemon:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-ia_service:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-notificaciones-deadline-worker:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-notificaciones-summary-worker:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-notificaciones-worker:latest ---
+
+
+--- Scanning: proyectolicitacion_admin2025_2-mysql:latest ---

@@ -11,3 +11,4 @@ redis==5.0.1
 python-dotenv==1.0.0
 schedule==1.2.0
 psutil==5.9.6
+pyjwt==2.8.0

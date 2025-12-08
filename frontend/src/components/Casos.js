@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom'; // Importar Link
+import { Link } from 'react-router-dom';
 import apiFetch from '../utils/api';
+import { useAuth } from '../context/AuthContext'; // Importar useAuth
 
 function Casos() {
+  const { userRole } = useAuth(); // Obtener el rol del usuario
   const [casos, setCasos] = useState([]);
   const [tribunales, setTribunales] = useState([]);
   const [newCaso, setNewCaso] = useState({
@@ -78,48 +80,50 @@ function Casos() {
       <h2>Gestión de Casos</h2>
 
       {/* Formulario para crear nuevo caso */}
-      <div className="card mb-4">
-        <div className="card-header">Crear Nuevo Caso</div>
-        <div className="card-body">
-          <form onSubmit={handleCreateCaso}>
-            <div className="row mb-3">
-              <div className="col-md-6">
-                <label htmlFor="rit" className="form-label">RIT</label>
-                <input type="text" className="form-control" id="rit" name="rit" placeholder="Ej: C-123-2024" value={newCaso.rit} onChange={handleInputChange} required />
+      {(userRole === 'ADMINISTRADOR' || userRole === 'ABOGADO') && (
+        <div className="card mb-4">
+          <div className="card-header">Crear Nuevo Caso</div>
+          <div className="card-body">
+            <form onSubmit={handleCreateCaso}>
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <label htmlFor="rit" className="form-label">RIT</label>
+                  <input type="text" className="form-control" id="rit" name="rit" placeholder="Ej: C-123-2024" value={newCaso.rit} onChange={handleInputChange} required />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="tribunal_id" className="form-label">Tribunal</label>
+                  <select className="form-select" id="tribunal_id" name="tribunal_id" value={newCaso.tribunal_id} onChange={handleInputChange} required>
+                    <option value="" disabled>Seleccione un tribunal...</option>
+                    {tribunales.map(t => (
+                      <option key={t.id_tribunal} value={t.id_tribunal}>{t.nombre}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="col-md-6">
-                <label htmlFor="tribunal_id" className="form-label">Tribunal</label>
-                <select className="form-select" id="tribunal_id" name="tribunal_id" value={newCaso.tribunal_id} onChange={handleInputChange} required>
-                  <option value="" disabled>Seleccione un tribunal...</option>
-                  {tribunales.map(t => (
-                    <option key={t.id_tribunal} value={t.id_tribunal}>{t.nombre}</option>
-                  ))}
-                </select>
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <label htmlFor="fecha_inicio" className="form-label">Fecha de Inicio</label>
+                  <input type="date" className="form-control" id="fecha_inicio" name="fecha_inicio" value={newCaso.fecha_inicio} onChange={handleInputChange} required />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="estado" className="form-label">Estado</label>
+                  <select className="form-select" id="estado" name="estado" value={newCaso.estado} onChange={handleInputChange}>
+                    <option value="ACTIVA">Activa</option>
+                    <option value="CONGELADA">Congelada</option>
+                    <option value="ARCHIVADA">Archivada</option>
+                  </select>
+                </div>
               </div>
-            </div>
-            <div className="row mb-3">
-              <div className="col-md-6">
-                <label htmlFor="fecha_inicio" className="form-label">Fecha de Inicio</label>
-                <input type="date" className="form-control" id="fecha_inicio" name="fecha_inicio" value={newCaso.fecha_inicio} onChange={handleInputChange} required />
+              <div className="mb-3">
+                  <label htmlFor="descripcion" className="form-label">Descripción</label>
+                  <textarea className="form-control" id="descripcion" name="descripcion" rows="3" value={newCaso.descripcion} onChange={handleInputChange}></textarea>
               </div>
-              <div className="col-md-6">
-                <label htmlFor="estado" className="form-label">Estado</label>
-                <select className="form-select" id="estado" name="estado" value={newCaso.estado} onChange={handleInputChange}>
-                  <option value="ACTIVA">Activa</option>
-                  <option value="CONGELADA">Congelada</option>
-                  <option value="ARCHIVADA">Archivada</option>
-                </select>
-              </div>
-            </div>
-            <div className="mb-3">
-                <label htmlFor="descripcion" className="form-label">Descripción</label>
-                <textarea className="form-control" id="descripcion" name="descripcion" rows="3" value={newCaso.descripcion} onChange={handleInputChange}></textarea>
-            </div>
-            <button type="submit" className="btn btn-primary">Crear Caso</button>
-          </form>
+              <button type="submit" className="btn btn-primary">Crear Caso</button>
+            </form>
+          </div>
         </div>
-      </div>
-
+      )}
+      
       {/* Búsqueda y listado de casos */}
       <div className="card">
         <div className="card-header">Listado de Casos</div>
@@ -145,7 +149,9 @@ function Casos() {
                   <td>{caso.descripcion}</td>
                   <td>
                     <Link to={`/casos/${caso.id_causa}`} className="btn btn-info btn-sm me-2">Detalles</Link>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDeleteCaso(caso.id_causa)}>Eliminar</button>
+                    {(userRole === 'ADMINISTRADOR' || userRole === 'ABOGADO') && (
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteCaso(caso.id_causa)}>Eliminar</button>
+                    )}
                   </td>
                 </tr>
               ))}

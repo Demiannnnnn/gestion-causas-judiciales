@@ -3,13 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Layout = ({ children }) => {
-  const { isLoggedIn, logout } = useAuth();
+  const { isLoggedIn, logout, userRole } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  // Helper para verificar acceso
+  const hasAccess = (roles) => isLoggedIn && roles.includes(userRole);
 
   return (
     <div>
@@ -21,23 +24,41 @@ const Layout = ({ children }) => {
           </button>
           <div className="collapse navbar-collapse" id="navbarNav">
             <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-              <li className="nav-item">
-                <Link className="nav-link" to="/casos">Casos</Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/documentos">Documentos</Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/notificaciones">Notificaciones</Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/reportes">Reportes</Link>
-              </li>
+              
+              {hasAccess(['ADMINISTRADOR', 'ABOGADO', 'ASISTENTE']) && (
+                <li className="nav-item">
+                  <Link className="nav-link" to="/casos">Casos</Link>
+                </li>
+              )}
+
+              {hasAccess(['ADMINISTRADOR', 'ABOGADO', 'ASISTENTE']) && (
+                <li className="nav-item">
+                  <Link className="nav-link" to="/documentos">Documentos</Link>
+                </li>
+              )}
+
+              {hasAccess(['ADMINISTRADOR', 'ABOGADO', 'ASISTENTE']) && (
+                <li className="nav-item">
+                  <Link className="nav-link" to="/notificaciones">Notificaciones</Link>
+                </li>
+              )}
+
+              {hasAccess(['ADMINISTRADOR', 'SISTEMAS', 'ABOGADO']) && (
+                <li className="nav-item">
+                  <Link className="nav-link" to="/reportes">Reportes</Link>
+                </li>
+              )}
+
             </ul>
             <div className="d-flex gap-2">
               {isLoggedIn ? (
                 <>
-                  <Link className="btn btn-outline-info" to="/ia-seguridad">Agente</Link>
+                  <span className="navbar-text me-2 text-light">
+                    {userRole}
+                  </span>
+                  {hasAccess(['ADMINISTRADOR', 'SISTEMAS']) && (
+                    <Link className="btn btn-outline-info" to="/ia-seguridad">Agente</Link>
+                  )}
                   <button className="btn btn-outline-secondary" onClick={handleLogout}>Logout</button>
                 </>
               ) : (

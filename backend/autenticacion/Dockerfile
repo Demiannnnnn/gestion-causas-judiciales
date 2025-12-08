@@ -1,13 +1,31 @@
-FROM python:3.11-slim
+# Stage 1: Build dependencies
+FROM python:3.11-slim AS builder
 
-# Instalar dependencias del sistema para mysqlclient y bcrypt
-RUN apt-get update && apt-get install -y gcc default-libmysqlclient-dev pkg-config && rm -rf /var/lib/apt/lists/*
+# Instalar dependencias de compilación
+RUN apt-get update && apt-get install -y \
+    gcc \
+    default-libmysqlclient-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Instalar dependencias de Python
+# Instalar dependencias en un directorio temporal
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Stage 2: Runtime
+FROM python:3.11-slim
+
+# Instalar solo librerías runtime necesarias (sin compiladores)
+RUN apt-get update && apt-get install -y \
+    default-libmysqlclient-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copiar dependencias instaladas desde builder
+COPY --from=builder /install /usr/local
 
 # Copiar el código de la aplicación
 COPY ./app .

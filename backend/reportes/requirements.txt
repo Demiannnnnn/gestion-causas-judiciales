@@ -6,3 +6,4 @@ PyMySQL==1.1.0
 pandas
 reportlab
 python-dotenv
+PyJWT==2.8.0

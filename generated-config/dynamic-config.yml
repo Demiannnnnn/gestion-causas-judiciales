@@ -1,0 +1,57 @@
+http:
+  middlewares:
+    # Rate Limiting - Protección contra ataques de fuerza bruta y DDoS
+    rate-limit:
+      rateLimit:
+        average: 100 # 100 requests per second
+        period: 1s
+        burst: 50 # Permite ráfagas de hasta 50 requests
+
+    # Rate Limiting estricto para endpoints de autenticación
+    rate-limit-auth:
+      rateLimit:
+        average: 10 # 10 requests per second
+        period: 1s
+        burst: 5 # Máximo 5 requests en ráfaga
+
+    # Headers de seguridad HTTP - Protección contra ataques web comunes
+    security-headers:
+      headers:
+        # HSTS - Force HTTPS por 1 año
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        # Prevenir clickjacking
+        customFrameOptionsValue: "SAMEORIGIN"
+        # Content Security Policy - Prevenir XSS
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://localhost"
+        # Prevenir MIME sniffing
+        contentTypeNosniff: true
+        # Protección XSS del navegador
+        browserXssFilter: true
+        # Referrer Policy
+        referrerPolicy: "strict-origin-when-cross-origin"
+        # Permissions Policy
+        permissionsPolicy: "geolocation=(), microphone=(), camera=()"
+        # No exponer tecnologías del servidor
+        customResponseHeaders:
+          X-Powered-By: ""
+          Server: ""
+
+    # CORS para frontend
+    cors-frontend:
+      headers:
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+          - "OPTIONS"
+        accessControlAllowHeaders:
+          - "Content-Type"
+          - "Authorization"
+        accessControlAllowOriginList:
+          - "http://localhost"
+          - "https://localhost"
+        accessControlMaxAge: 100
+        accessControlAllowCredentials: true

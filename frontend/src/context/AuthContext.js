@@ -1,4 +1,5 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useMemo } from 'react';
+import { getUserRole } from '../utils/auth';
 
 const AuthContext = createContext(null);
 
@@ -15,10 +16,13 @@ export const AuthProvider = ({ children }) => {
         setToken(null);
     };
 
+    const userRole = useMemo(() => getUserRole(token), [token]);
+
     // El valor que proveemos a los componentes hijos
     const value = {
         token,
         isLoggedIn: !!token,
+        userRole,
         login,
         logout,
     };

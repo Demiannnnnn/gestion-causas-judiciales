@@ -4,7 +4,7 @@
 set -e
 
 # --- Configuration ---
-PROJECT_NAME="proyectolicitacion_admin2025_2"
+PROJECT_NAME="licitacion_sistemacausasjudiciales"
 SERVICES="
 db-master
 db-proxy
@@ -19,11 +19,8 @@ reportes
 frontend
 backup-service
 failover-daemon
-ia_service
-notificaciones-deadline-worker
-notificaciones-summary-worker
-notificaciones-worker
-mysql
+redis
+gateway
 "
 REPORTS_DIR="docs/reportes/vulnerabilidades"
 DATE_STAMP=$(date +%Y-%m-%d)

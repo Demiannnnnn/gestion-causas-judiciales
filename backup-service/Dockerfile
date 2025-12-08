@@ -33,6 +33,4 @@ RUN dos2unix /entrypoint.sh
 # Change permissions before switching user
 RUN chmod +x /entrypoint.sh
 
-USER appuser
-
 ENTRYPOINT ["/entrypoint.sh"]

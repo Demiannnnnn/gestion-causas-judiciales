@@ -42,8 +42,38 @@ mysql_servers = (
 # MySQL users configuration
 mysql_users = (
     {
-        username = "appuser"
+        username = "admin_db"
         password = "password"
+        default_hostgroup = 10
+        active = 1
+    },
+    {
+        username = "administrador"
+        password = "__MYSQL_PASSWORD_ADMIN_APP__"
+        default_hostgroup = 10
+        active = 1
+    },
+    {
+        username = "abogado"
+        password = "__MYSQL_PASSWORD_ABOGADO_APP__"
+        default_hostgroup = 10
+        active = 1
+    },
+    {
+        username = "asistente"
+        password = "__MYSQL_PASSWORD_ASISTENTE_APP__"
+        default_hostgroup = 10
+        active = 1
+    },
+    {
+        username = "sistemas"
+        password = "__MYSQL_PASSWORD_SISTEMAS_APP__"
+        default_hostgroup = 10
+        active = 1
+    },
+    {
+        username = "readonly_app"
+        password = "__MYSQL_PASSWORD_READONLY_APP__"
         default_hostgroup = 10
         active = 1
     },
