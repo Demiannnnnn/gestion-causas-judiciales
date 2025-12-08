@@ -18,6 +18,9 @@ RUN npm run build
 # Stage 2: Serve the static files with Nginx
 FROM nginx:1-alpine
 
+# Update OS packages to get security patches
+RUN apk update && apk upgrade
+
 # Copy the static files from the build stage
 COPY --from=build /app/build /usr/share/nginx/html
 
