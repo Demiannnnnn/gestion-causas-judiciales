@@ -1,8 +1,8 @@
 Flask==3.0.0
-Flask-CORS==4.0.0
+Flask-CORS==4.0.2
 # Base de datos SQL
 Flask-SQLAlchemy==3.1.1
-PyMySQL==1.1.0
+PyMySQL==1.1.1
 pandas
 reportlab
 python-dotenv
