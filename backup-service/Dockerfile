@@ -7,7 +7,8 @@ RUN apk add --no-cache \
     tar \
     gzip \
     dcron \
-    rsync
+    rsync \
+    dos2unix  # Add dos2unix
 
 # Crear directorio de trabajo
 WORKDIR /app
@@ -15,12 +16,14 @@ WORKDIR /app
 # Copiar scripts de backup
 COPY scripts/ /app/scripts/
 RUN chmod +x /app/scripts/*.sh
+RUN dos2unix /app/scripts/*.sh # Convert line endings for all scripts
 
 # Crear directorio de backups
 RUN mkdir -p /backups
 
 # Script de inicio
 COPY entrypoint.sh /entrypoint.sh
+RUN dos2unix /entrypoint.sh # Convert line endings for entrypoint.sh
 
 # Change permissions before switching user
 RUN chmod +x /entrypoint.sh
