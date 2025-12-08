@@ -209,6 +209,7 @@ services:
       - --ssl-key=/etc/mysql/certs/client-key.pem
     volumes:
       - mysql-slave-data:/var/lib/mysql
+      - mysql-files-data:/var/lib/mysql-files
       - db-slave-init-scripts:/docker-entrypoint-initdb.d:ro
       - ./db/certs:/etc/mysql/certs:ro
     networks:
