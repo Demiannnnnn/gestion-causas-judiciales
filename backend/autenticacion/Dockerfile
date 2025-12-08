@@ -22,7 +22,6 @@ RUN apt-get update && apt-get upgrade -y
 # Instalar solo librerías runtime necesarias (sin compiladores)
 RUN apt-get install -y \
     default-libmysqlclient-dev \
-
 WORKDIR /app
 
 # Copiar dependencias instaladas desde builder
