@@ -5,6 +5,9 @@ RUN apt-get update && apt-get upgrade -y
 
 RUN apt-get install -y \
     gcc \
+    default-libmysqlclient-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
