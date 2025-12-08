@@ -68,6 +68,25 @@ done
 
 #docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format table --no-progress proyectolicitacion_admin2025_2-frontend:latest
 
+# --- Dependency Scan (Trivy) ---
+echo "\n--- Scanning Python Dependencies (Trivy) ---\n" >> "$REPORT_FILE"
+find backend -name "requirements.txt" | while read -r req_file; do
+  SERVICE_DIR=$(dirname "$req_file")
+  echo "--- Scanning dependencies for: ${SERVICE_DIR} ---"
+  printf "\n\n--- Dependencies for: ${SERVICE_DIR} ---\n" >> "$REPORT_FILE"
+  docker run --rm -v "$(pwd):/scan" aquasec/trivy fs --format table --no-progress --severity HIGH,CRITICAL "/scan/${req_file}" >> "$REPORT_FILE" || true
+done
+
+# --- Port Scan (nmap) ---
+echo "\n--- Scanning Open Ports (nmap) ---\n" >> "$REPORT_FILE"
+echo "--- Running nmap on localhost ---"
+docker run --rm --net=host instrumentisto/nmap -sT -p- --open localhost >> "$REPORT_FILE" || true
+
+# --- Web Analysis (nikto) ---
+echo "\n--- Basic Web Analysis (nikto) ---\n" >> "$REPORT_FILE"
+echo "--- Running nikto on http://localhost:80 ---"
+docker run --rm --net=host sudis/nikto -h http://localhost:80 >> "$REPORT_FILE" || true
+
 echo "\n==========================================="
 echo "All scans completed."
 echo "Consolidated report is available at: ${REPORT_FILE}"
