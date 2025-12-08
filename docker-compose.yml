@@ -658,15 +658,14 @@ services:
     build:
       context: ./backend/notificaciones
     container_name: notificaciones
-    command: sh -c "gunicorn --bind 0.0.0.0:8003 --workers 2 --timeout 180 app:app & python worker.py"
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=${DATABASE_URL}
-      - DATABASE_URL_ADMINISTRADOR=${DATABASE_URL_ADMINISTRADOR}
-      - DATABASE_URL_ABOGADO=${DATABASE_URL_ABOGADO}
-      - DATABASE_URL_ASISTENTE=${DATABASE_URL_ASISTENTE}
-      - DATABASE_URL_SISTEMAS=${DATABASE_URL_SISTEMAS}
+      - DATABASE_URL=mysql+pymysql://admin_db:${MYSQL_PASSWORD:-password}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP:-AdminApp}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP:-Abogado}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP:-Asistente}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP:-Sistemas}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
       - SECRET_KEY=${SECRET_KEY}
       - REDIS_URL=redis://redis:6379/2
       - MAIL_SERVER=${MAIL_SERVER:-mailhog}
@@ -790,11 +789,11 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=${DATABASE_URL}
-      - DATABASE_URL_ADMINISTRADOR=${DATABASE_URL_ADMINISTRADOR}
-      - DATABASE_URL_ABOGADO=${DATABASE_URL_ABOGADO}
-      - DATABASE_URL_ASISTENTE=${DATABASE_URL_ASISTENTE}
-      - DATABASE_URL_SISTEMAS=${DATABASE_URL_SISTEMAS}
+      - DATABASE_URL=mysql+pymysql://admin_db:${MYSQL_PASSWORD:-password}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP:-AdminApp}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP:-Abogado}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP:-Asistente}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
+      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP:-Sistemas}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
       - SECRET_KEY=${SECRET_KEY}
     volumes:
       - ./backend/reportes/app:/app

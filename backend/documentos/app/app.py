@@ -34,7 +34,7 @@ def upload_documento(current_user, id_causa):
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        with db_manager.get_session() as session:
+        with db_manager.get_session(role=current_user.get('rol')) as session:
             nuevo_documento = Documento(
                 id_causa=id_causa,
                 tipo=tipo,
@@ -51,14 +51,14 @@ def upload_documento(current_user, id_causa):
 @app.route('/causa/<int:id_causa>/documentos', methods=['GET'])
 @token_required
 def get_documentos_por_causa(current_user, id_causa):
-    with db_manager.get_session() as session:
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         documentos = session.query(Documento).filter_by(id_causa=id_causa).all()
         return jsonify([d.to_json() for d in documentos]), 200
 
 @app.route('/<int:id_documento>', methods=['GET'])
 @token_required
 def descargar_documento(current_user, id_documento):
-    with db_manager.get_session() as session:
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         documento = session.query(Documento).get(id_documento)
         if not documento:
             return jsonify({'error': 'Documento no encontrado'}), 404
@@ -75,7 +75,7 @@ def descargar_documento(current_user, id_documento):
 @app.route('/<int:id_documento>', methods=['DELETE'])
 @token_required
 def eliminar_documento(current_user, id_documento):
-    with db_manager.get_session() as session:
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         documento = session.query(Documento).get(id_documento)
         if not documento:
             return jsonify({'error': 'Documento no encontrado'}), 404

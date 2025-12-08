@@ -256,7 +256,7 @@ def get_notificaciones(current_user):
     - leido: filtrar por estado de lectura (true/false)
     """
     try:
-        with db_manager.get_session() as session:
+        with db_manager.get_session(role=current_user.get('rol')) as session:
             query = session.query(Notificacion).filter_by(id_usuario=current_user['id_usuario'])
 
             if request.args.get("tipo"):
@@ -280,7 +280,7 @@ def get_notificaciones(current_user):
 def marcar_leido(current_user, notif_id):
     """Marca una notificación como leída para el usuario autenticado"""
     try:
-        with db_manager.get_session() as session:
+        with db_manager.get_session(role=current_user.get('rol')) as session:
             notificacion = session.query(Notificacion).filter_by(
                 id_notificacion=notif_id,
                 id_usuario=current_user['id_usuario']
@@ -302,7 +302,7 @@ def marcar_leido(current_user, notif_id):
 def eliminar_notificacion(current_user, notif_id):
     """Elimina una notificación para el usuario autenticado"""
     try:
-        with db_manager.get_session() as session:
+        with db_manager.get_session(role=current_user.get('rol')) as session:
             notificacion = session.query(Notificacion).filter_by(
                 id_notificacion=notif_id,
                 id_usuario=current_user['id_usuario']

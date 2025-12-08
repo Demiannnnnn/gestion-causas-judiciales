@@ -33,7 +33,7 @@ def health_check():
 @app.route("/estadisticas", methods=["GET"])
 @token_required
 def get_estadisticas(current_user):
-    with db_manager.get_session() as session:
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         total_casos = session.query(Causa).count()
         casos_activos = session.query(Causa).filter(Causa.estado == 'ACTIVA').count()
         total_documentos = session.query(Documento).count()
@@ -60,7 +60,7 @@ def reporte_casos(current_user):
         tribunal_id = request.args.get("tribunal_id", type=int)
         abogado_id = request.args.get("abogado_id", type=int)
 
-        with db_manager.get_session() as session:
+        with db_manager.get_session(role=current_user.get('rol')) as session:
             query = session.query(
                 Causa.rit,
                 Causa.estado,
@@ -113,7 +113,7 @@ def reporte_vencimientos(current_user):
         today = datetime.date.today()
         thirty_days_later = today + datetime.timedelta(days=30)
 
-        with db_manager.get_session() as session:
+        with db_manager.get_session(role=current_user.get('rol')) as session:
             upcoming_deadlines = session.query(
                 Movimiento.descripcion,
                 Movimiento.fecha,
@@ -164,7 +164,7 @@ def get_causa_history_pdf(current_user, caso_rit):
         story.append(Paragraph(f"Historial Completo de Causa: {caso_rit}", styles['h1']))
         story.append(Spacer(1, 0.2 * inch))
 
-        with db_manager.get_session() as session:
+        with db_manager.get_session(role=current_user.get('rol')) as session:
             causa = session.query(Causa).filter_by(rit=caso_rit).first()
             if not causa:
                 return jsonify({'error': 'Causa no encontrada'}), 404
