@@ -1,5 +1,7 @@
 FROM proxysql/proxysql:2.6.5
 
+RUN apt-get update && apt-get upgrade -y
+
 # El archivo de configuración será montado desde el volumen generado por config-init-proxysql
 # Script de inicio que elimina la base de datos interna para forzar lectura del config
 RUN echo '#!/bin/sh' > /start-proxysql.sh && \
