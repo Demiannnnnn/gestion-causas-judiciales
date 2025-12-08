@@ -23,3 +23,22 @@ serversTransport:
     dialTimeout: 180s
     responseHeaderTimeout: 180s
     idleConnTimeout: 180s
+
+middlewares:
+  cors-frontend:
+    headers:
+      accessControlAllowMethods:
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "DELETE"
+        - "OPTIONS"
+      accessControlAllowHeaders:
+        - "Content-Type"
+        - "Authorization"
+      accessControlAllowOriginList:
+        - "http://localhost" # For local development
+        - "https://localhost" # For local development
+        - "https://portal.example.com"
+      accessControlMaxAge: 100
+      accessControlAllowCredentials: true

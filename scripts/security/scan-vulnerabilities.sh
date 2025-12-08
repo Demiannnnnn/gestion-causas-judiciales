@@ -27,17 +27,30 @@ mysql
 "
 REPORTS_DIR="docs/reportes/vulnerabilidades"
 DATE_STAMP=$(date +%Y-%m-%d)
-REPORT_FILE="${REPORTS_DIR}/consolidated-scan-report-${DATE_STAMP}.txt"
+BASE_FILENAME="${REPORTS_DIR}/consolidated-scan-report-${DATE_STAMP}"
+REPORT_FILE=""
+
+# --- Versioning Logic ---
+VERSION=1
+while true; do
+  TENTATIVE_FILENAME="${BASE_FILENAME}-v${VERSION}.txt"
+  if [ ! -f "$TENTATIVE_FILENAME" ]; then
+    REPORT_FILE="$TENTATIVE_FILENAME"
+    break
+  fi
+  VERSION=$((VERSION + 1))
+done
 
 # --- Main Script ---
 echo "==========================================="
 echo "Starting Consolidated Vulnerability Scan"
+echo "Report will be saved to: ${REPORT_FILE}"
 echo "==========================================="
 
 # Ensure the reports directory exists
 mkdir -p "$REPORTS_DIR"
 
-# Create/overwrite the report file and add a header
+# Create the new versioned report file with a header
 echo "Consolidated Vulnerability Report - $(date)" > "$REPORT_FILE"
 echo "===========================================" >> "$REPORT_FILE"
 
@@ -53,7 +66,7 @@ for SERVICE in $SERVICES; do
 
   # Run Trivy scan and append the output to the report file
   # Use "|| true" to continue even if vulnerabilities are found (which returns a non-zero exit code)
-  docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format table --no-progress --severity CRITICAL "$IMAGE_NAME" >> "$REPORT_FILE" || true
+  docker run --rm -v ///var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format table --no-progress --severity HIGH,CRITICAL "$IMAGE_NAME" >> "$REPORT_FILE" || true
 done
 
 #docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format table --no-progress proyectolicitacion_admin2025_2-frontend:latest

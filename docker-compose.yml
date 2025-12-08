@@ -1,200 +1,31 @@
 services:
-  # Config initializers using Alpine
-  config-init-prometheus:
-    image: alpine:latest
-    container_name: config-init-prometheus
-    env_file: .env
-    environment:
-      - SCRAPE_INTERVAL=${PROMETHEUS_SCRAPE_INTERVAL:-15s}
-      - EVALUATION_INTERVAL=${PROMETHEUS_EVALUATION_INTERVAL:-15s}
-    volumes:
-      - ./scripts/config-templates/prometheus:/templates:ro
-      - ./scripts/init-prometheus.sh:/init.sh:ro
-      - prometheus-config:/config
-    command: sh /init.sh
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - DAC_OVERRIDE
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 64M
-        reservations:
-          cpus: "0.1"
-          memory: 16M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-
-  config-init-traefik:
-    image: alpine:latest
-    container_name: config-init-traefik
-    env_file: .env
-    environment:
-      - API_INSECURE=${TRAEFIK_API_INSECURE:-true}
-      - DASHBOARD_ENABLED=${TRAEFIK_DASHBOARD_ENABLED:-true}
-      - NETWORK_NAME=app-network
-      - LOG_LEVEL=${TRAEFIK_LOG_LEVEL:-INFO}
-    volumes:
-      - ./scripts/config-templates/traefik:/templates:ro
-      - ./scripts/init-traefik.sh:/init.sh:ro
-      - traefik-config:/config
-    command: sh /init.sh
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - DAC_OVERRIDE
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 64M
-        reservations:
-          cpus: "0.1"
-          memory: 16M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-
-  config-init-proxysql:
-    image: alpine:latest
-    container_name: config-init-proxysql
-    env_file: .env
-    environment:
-      - PROXYSQL_ADMIN_USER=${PROXYSQL_ADMIN_USER:-admin}
-      - PROXYSQL_ADMIN_PASSWORD=${PROXYSQL_ADMIN_PASSWORD:-admin}
-      - MYSQL_MONITOR_USER=${MYSQL_MONITOR_USER}
-      - MYSQL_MONITOR_PASSWORD=${MYSQL_MONITOR_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_MASTER_HOST=${MYSQL_MASTER_HOST:-db-master}
-      - MYSQL_SLAVE_HOST=${MYSQL_SLAVE_HOST:-db-slave}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - MYSQL_PASSWORD_ADMIN_APP=${MYSQL_PASSWORD_ADMIN_APP}
-      - MYSQL_PASSWORD_ABOGADO_APP=${MYSQL_PASSWORD_ABOGADO_APP}
-      - MYSQL_PASSWORD_ASISTENTE_APP=${MYSQL_PASSWORD_ASISTENTE_APP}
-      - MYSQL_PASSWORD_SISTEMAS_APP=${MYSQL_PASSWORD_SISTEMAS_APP}
-      - MYSQL_PASSWORD_READONLY_APP=${MYSQL_PASSWORD_READONLY_APP}
-    volumes:
-      - ./scripts/config-templates/proxysql:/templates:ro
-      - ./scripts/init-proxysql.sh:/init.sh:ro
-      - proxysql-config:/config
-    command: sh /init.sh
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - DAC_OVERRIDE
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 64M
-        reservations:
-          cpus: "0.1"
-          memory: 16M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-
-  config-init-redis:
-    image: alpine:latest
-    container_name: config-init-redis
-    env_file: .env
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_MAX_MEMORY=${REDIS_MAX_MEMORY:-256mb}
-      - REDIS_DATABASES=${REDIS_DATABASES:-16}
-    volumes:
-      - ./scripts/config-templates/redis:/templates:ro
-      - ./scripts/init-redis.sh:/init.sh:ro
-      - redis-config:/config
-    command: sh /init.sh
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - DAC_OVERRIDE
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 64M
-        reservations:
-          cpus: "0.1"
-          memory: 16M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-
   #router
   gateway:
-    image: traefik:v2.11.32
-    container_name: gateway
+    image: traefik:v2.10  
+    container_name: gateway    
     command:
-      - "--api.insecure=true"
       - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--serversTransport.forwardingTimeouts.dialTimeout=180s"
-      - "--serversTransport.forwardingTimeouts.responseHeaderTimeout=180s"
-      - "--serversTransport.forwardingTimeouts.idleConnTimeout=180s"
-      - "--accesslog=true"
-      - "--log.level=DEBUG"
+      - "--configfile=/etc/traefik/traefik.yml"
     ports:
-      - "8081:80"
+      - "80:80"
+      - "443:443"
       - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - frontend-network
       - backend-network
     restart: unless-stopped
-    depends_on:
-      config-init-traefik:
-        condition: service_completed_successfully
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
-    cap_add:
-      - NET_BIND_SERVICE
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   db-init:
-    image: alpine:latest
+    image: alpine:3.18
     container_name: db-init
     env_file: .env
     command:
@@ -206,11 +37,11 @@ services:
         cp /source-scripts-master/01-schema.sql /init-target-master/
         cp /source-scripts-master/02-grants.sql.template /init-target-master/
         cp /source-scripts-master/03-triggers.sql /init-target-master/
-
+        
         echo 'Copying SLAVE scripts...'
         cp /source-scripts-slave/init-slave.sh /init-target-slave/
         cp /source-scripts-slave/01-create-replication-user.sql.template /init-target-slave/
-
+        
         echo 'Processing MASTER grants template...'
         sed -e 's|__MYSQL_DATABASE__|${MYSQL_DATABASE}|g' \
             -e 's|__MYSQL_MONITOR_PASSWORD__|${MYSQL_MONITOR_PASSWORD}|g' \
@@ -223,36 +54,29 @@ services:
             -e 's|__MYSQL_PASSWORD_SISTEMAS_APP__|${MYSQL_PASSWORD_SISTEMAS_APP}|g' \
             -e 's|__MYSQL_PASSWORD_READONLY_APP__|${MYSQL_PASSWORD_READONLY_APP}|g' \
             /init-target-master/02-grants.sql.template > /init-target-master/02-grants.sql
-
+        
         echo 'Processing SLAVE replication user template...'
         sed -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
             /init-target-slave/01-create-replication-user.sql.template > /init-target-slave/01-create-replication-user.sql
-
+        
         echo 'Initialization scripts ready.'
     volumes:
       - ./db/master/mysql:/source-scripts-master:ro
       - ./db/slave:/source-scripts-slave:ro
-      - db-master-init-scripts:/init-target-master # Monta el volumen del master
+      - db-master-init-scripts:/init-target-master
       - db-slave-init-scripts:/init-target-slave
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 128M
-        reservations:
-          cpus: "0.1"
-          memory: 32M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
+          cpus: '0.5'
+          memory: '256M'
 
   db-master:
+    image: proyectolicitacion_admin2025_2-db-master:1.0.0
     build:
       context: ./db/master
     container_name: db-master
@@ -273,7 +97,7 @@ services:
       - --ssl-key=/etc/mysql/certs/server-key.pem
     volumes:
       - mysql-master-data:/var/lib/mysql
-      - db-master-init-scripts:/docker-entrypoint-initdb.d:ro # <- SOLO scripts del master
+      - db-master-init-scripts:/docker-entrypoint-initdb.d:ro
       - ./db/certs:/etc/mysql/certs:ro
     ports:
       - "3307:3306"
@@ -281,11 +105,7 @@ services:
       - database-network
     restart: always
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1",
-        ]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -294,39 +114,27 @@ services:
       db-init:
         condition: service_completed_successfully
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
-      - SETUID
-      - SETGID
-      - DAC_OVERRIDE
     deploy:
       resources:
         limits:
-          cpus: "2.0"
-          memory: 2G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "20m"
-        max-file: "5"
+          cpus: '0.5'
+          memory: '256M'
 
   db-proxy:
+    image: proyectolicitacion_admin2025_2-db-proxy:1.0.0
     build:
       context: ./db/proxy
     container_name: db-proxy
     env_file: .env
     volumes:
-      - proxysql-config:/etc/proxysql:ro
+      - ./generated-config/proxysql.cnf:/etc/proxysql/proxysql.cnf:ro
       - proxysql-data:/var/lib/proxysql
     ports:
-      - "6033:6033" # MySQL traffic
-      - "6032:6032" # Admin interface
+      - "6033:6033"
+      - "6032:6032"
     networks:
       - backend-network
       - database-network
@@ -336,30 +144,15 @@ services:
         condition: service_healthy
       db-slave:
         condition: service_started
-      config-init-proxysql:
-        condition: service_completed_successfully
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
-      - SETUID
-      - SETGID
-      - DAC_OVERRIDE
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
-          cpus: "0.25"
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "15m"
-        max-file: "4"
+          cpus: '0.5'
+          memory: '256M'
 
   db-slave:
     build:
@@ -389,94 +182,59 @@ services:
       - --ssl-key=/etc/mysql/certs/client-key.pem
     volumes:
       - mysql-slave-data:/var/lib/mysql
-      - db-slave-init-scripts:/docker-entrypoint-initdb.d:ro # <- SOLO script del slave
+      - db-slave-init-scripts:/docker-entrypoint-initdb.d:ro
       - ./db/certs:/etc/mysql/certs:ro
-    ports:
-      - "3308:3306"
     networks:
       - database-network
     restart: always
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
-      - SETUID
-      - SETGID
-      - DAC_OVERRIDE
     deploy:
       resources:
         limits:
-          cpus: "2.0"
-          memory: 2G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "20m"
-        max-file: "5"
+          cpus: '0.5'
+          memory: '256M'
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine    
     container_name: redis
-    command: redis-server /config/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - redis-data:/data
-      - redis-config:/config:ro
+      - ./generated-config/redis.conf:/usr/local/etc/redis/redis.conf:ro
     ports:
       - "6379:6379"
     networks:
       - cache-network
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
-    depends_on:
-      config-init-redis:
-        condition: service_completed_successfully
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
-    cap_add:
-      - SETUID
-      - SETGID
-      - CHOWN
-      - DAC_OVERRIDE
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   redis-replica:
     image: redis:7-alpine
     container_name: redis-replica
-    command: redis-server /config/redis.conf --replicaof redis 6379
+    command: redis-server /usr/local/etc/redis/redis.conf --replicaof redis 6379
     volumes:
-      - redis-config:/config:ro
+      - ./generated-config/redis.conf:/usr/local/etc/redis/redis.conf:ro
     depends_on:
       redis:
         condition: service_healthy
-      config-init-redis:
-        condition: service_completed_successfully
-    ports:
-      - "6380:6379"
-    networks:
-      - cache-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
@@ -484,27 +242,14 @@ services:
       timeout: 3s
       retries: 5
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
-      - ALL
-    cap_add:
-      - SETUID
-      - SETGID
-      - CHOWN
-      - DAC_OVERRIDE
+      - ALL  
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   autenticacion:
     build:
@@ -515,7 +260,7 @@ services:
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     volumes:
       - ./backend/autenticacion/app:/app
       - ./backend/common:/app/common
@@ -535,22 +280,14 @@ services:
       db-master:
         condition: service_started
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   casos:
     build:
@@ -558,12 +295,8 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://admin_db:${MYSQL_PASSWORD:-password}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP:-AdminApp}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP:-Abogado}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP:-Asistente}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP:-Sistemas}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - SECRET_KEY=${CASOS_SECRET_KEY}
       - REDIS_URL=redis://redis:6379/1
     volumes:
       - ./backend/casos/app:/app
@@ -585,38 +318,26 @@ services:
     depends_on:
       db-master:
         condition: service_started
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     deploy:
       replicas: 2
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   documentos:
+    image: proyectolicitacion_admin2025_2-documentos:1.0.0
     build:
       context: ./backend/documentos
     container_name: documentos
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://admin_db:${MYSQL_PASSWORD:-password}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP:-AdminApp}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP:-Abogado}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP:-Asistente}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP:-Sistemas}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - UPLOAD_FOLDER=/app/uploads
     volumes:
       - ./backend/documentos/app:/app
@@ -637,36 +358,24 @@ services:
       db-master:
         condition: service_started
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   notificaciones:
     build:
       context: ./backend/notificaciones
     container_name: notificaciones
+    command: sh -c "gunicorn --bind 0.0.0.0:8003 --workers 2 --timeout 180 app:app & python worker.py"
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://admin_db:${MYSQL_PASSWORD:-password}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP:-AdminApp}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP:-Abogado}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP:-Asistente}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP:-Sistemas}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/2
       - MAIL_SERVER=${MAIL_SERVER:-mailhog}
       - MAIL_PORT=${MAIL_PORT:-1025}
@@ -686,27 +395,18 @@ services:
       - "traefik.http.middlewares.notificaciones-strip.stripprefix.prefixes=/api/notificaciones"
       - "traefik.http.routers.notificaciones.middlewares=notificaciones-strip"
       - "traefik.http.services.notificaciones.loadbalancer.server.port=8003"
-    restart: unless-stopped
     depends_on:
       db-master:
         condition: service_started
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   ia-seguridad:
     build:
@@ -738,22 +438,14 @@ services:
       retries: 3
       start_period: 40s
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   cron:
     build:
@@ -765,36 +457,24 @@ services:
       - notificaciones
     restart: unless-stopped
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: 128M
-        reservations:
-          cpus: "0.05"
-          memory: 32M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   reportes:
+    image: proyectolicitacion_admin2025_2-reportes:1.0.0
     build:
       context: ./backend/reportes
     container_name: reportes
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://admin_db:${MYSQL_PASSWORD:-password}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP:-AdminApp}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP:-Abogado}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP:-Asistente}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP:-Sistemas}@db-proxy:6033/${MYSQL_DATABASE:-causas_judiciales_db}
-      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
     volumes:
       - ./backend/reportes/app:/app
       - ./backend/common:/app/common
@@ -808,100 +488,87 @@ services:
     networks:
       - backend-network
       - database-network
-    restart: unless-stopped
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   frontend:
     build:
       context: ./frontend
     labels:
+      # Enable Traefik for this service
       - "traefik.enable=true"
       - "traefik.docker.network=proyectolicitacion_admin2025_2_frontend-network"
-      - "traefik.http.routers.frontend.rule=Host(`localhost`)"
+
+      # --- HTTP Router ---
+      # Rule to catch HTTP traffic for localhost
+      - "traefik.http.routers.frontend-http.rule=Host(`localhost`)"
+      # Define the entrypoint for this router (port 80)
+      - "traefik.http.routers.frontend-http.entrypoints=web"
+      # Define and apply middleware to redirect to HTTPS
+      - "traefik.http.routers.frontend-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
+      # --- HTTPS Router ---
+      # Rule to catch HTTPS traffic for localhost
+      - "traefik.http.routers.frontend-secure.rule=Host(`localhost`)"
+      # Define the entrypoint for this router (port 443)
+      - "traefik.http.routers.frontend-secure.entrypoints=websecure"
+      # Enable TLS (HTTPS) for this router
+      - "traefik.http.routers.frontend-secure.tls=true"
+      
+      # Define the backend service and port for Traefik to forward traffic to
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    depends_on:
+      - reportes
     networks:
       - frontend-network
       - backend-network
     restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - DAC_OVERRIDE
-      - SETUID
-      - SETGID
     deploy:
       replicas: 2
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.47.2
     container_name: prometheus
     volumes:
-      - prometheus-config:/etc/prometheus:ro
+      - ./generated-config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
     networks:
       - monitoring-network
     restart: unless-stopped
-    depends_on:
-      config-init-prometheus:
-        condition: service_completed_successfully
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
-          cpus: "0.25"
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "15m"
-        max-file: "4"
+          cpus: '0.5'
+          memory: '256M'
+
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.1.5
     container_name: grafana
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
@@ -916,26 +583,14 @@ services:
     depends_on:
       - prometheus
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
-      - SETUID
-      - SETGID
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   mailhog:
     image: mailhog/mailhog
@@ -945,24 +600,15 @@ services:
       - "8025:8025"
     networks:
       - backend-network
-    restart: unless-stopped
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: 128M
-        reservations:
-          cpus: "0.05"
-          memory: 32M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   backup-service:
     build:
@@ -984,22 +630,14 @@ services:
       - db-master
     restart: unless-stopped
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 256M
-        reservations:
-          cpus: "0.1"
-          memory: 64M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   # Auto-Failover Daemon
   failover-daemon:
@@ -1024,22 +662,14 @@ services:
         condition: service_started
     restart: unless-stopped
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: 128M
-        reservations:
-          cpus: "0.05"
-          memory: 32M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
   # Auto-Failback Daemon (opcional)
   failback-daemon:
@@ -1064,24 +694,16 @@ services:
         condition: service_started
     restart: unless-stopped
     profiles:
-      - failback # Solo se inicia con: docker-compose --profile failback up
+      - failback  # Solo se inicia con: docker-compose --profile failback up
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges
     cap_drop:
       - ALL
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: 128M
-        reservations:
-          cpus: "0.05"
-          memory: 32M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+          cpus: '0.5'
+          memory: '256M'
 
 networks:
   frontend-network:
@@ -1089,25 +711,25 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/24
-
+  
   backend-network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.21.0.0/24
-
+  
   database-network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.22.0.0/24
-
+  
   cache-network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.23.0.0/24
-
+  
   monitoring-network:
     driver: bridge
     ipam:
@@ -1122,7 +744,7 @@ volumes:
   prometheus-data:
   prometheus-config:
   grafana-data:
-
+  frontend-node-modules:
   db-master-init-scripts: {}
   db-slave-init-scripts: {}
   redis-config:

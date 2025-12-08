@@ -19,11 +19,14 @@ RUN chmod +x /app/scripts/*.sh
 # Crear directorio de backups
 RUN mkdir -p /backups
 
-# Copiar el crontab
-COPY crontab /etc/crontabs/root
-
 # Script de inicio
 COPY entrypoint.sh /entrypoint.sh
+
+# Change permissions before switching user
 RUN chmod +x /entrypoint.sh
+
+# Crear usuario no privilegiado
+RUN adduser -D -u 1000 appuser
+USER appuser
 
 ENTRYPOINT ["/entrypoint.sh"]
