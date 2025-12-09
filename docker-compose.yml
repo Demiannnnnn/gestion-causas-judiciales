@@ -9,8 +9,8 @@ x-logging: &default-logging
 services:
   #router
   gateway:
-    image: traefik:v2.10.7
-    container_name: gateway    
+    image: traefik:v2.11.32
+    container_name: gateway
     command:
       - "--providers.docker=true"
       - "--configfile=/etc/traefik/traefik.yml"
@@ -35,8 +35,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   db-init:
     image: alpine:3.18.12
@@ -51,11 +51,11 @@ services:
         cp /source-scripts-master/01-schema.sql /init-target-master/
         cp /source-scripts-master/02-grants.sql.template /init-target-master/
         cp /source-scripts-master/03-triggers.sql /init-target-master/
-        
+
         echo 'Copying SLAVE scripts...'
         cp /source-scripts-slave/init-slave.sh /init-target-slave/
         cp /source-scripts-slave/01-create-replication-user.sql.template /init-target-slave/
-        
+
         echo 'Processing MASTER grants template...'
         sed -e 's|__MYSQL_DATABASE__|${MYSQL_DATABASE}|g' \
             -e 's|__MYSQL_MONITOR_PASSWORD__|${MYSQL_MONITOR_PASSWORD}|g' \
@@ -68,11 +68,15 @@ services:
             -e 's|__MYSQL_PASSWORD_SISTEMAS_APP__|${MYSQL_PASSWORD_SISTEMAS_APP}|g' \
             -e 's|__MYSQL_PASSWORD_READONLY_APP__|${MYSQL_PASSWORD_READONLY_APP}|g' \
             /init-target-master/02-grants.sql.template > /init-target-master/02-grants.sql
-        
+
         echo 'Processing SLAVE replication user template...'
         sed -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
             /init-target-slave/01-create-replication-user.sql.template > /init-target-slave/01-create-replication-user.sql
-        
+
+        echo 'Fixing permissions for init scripts...'
+        chown -R 999:999 /init-target-master /init-target-slave
+        chmod -R 755 /init-target-master /init-target-slave
+
         echo 'Initialization scripts ready.'
     volumes:
       - ./db/master/mysql:/source-scripts-master:ro
@@ -89,8 +93,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   db-master:
     image: proyectolicitacion_admin2025_2-db-master:1.0.0
@@ -124,7 +128,11 @@ services:
     restart: always
     logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -138,17 +146,20 @@ services:
       - SETGID
       - SYS_NICE
       - IPC_LOCK
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
     depends_on:
       db-init:
         condition: service_completed_successfully
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: '2G'
+          cpus: "2.0"
+          memory: "2G"
         reservations:
-          cpus: '0.5'
-          memory: '512M'
+          cpus: "0.5"
+          memory: "512M"
 
   db-proxy:
     image: proyectolicitacion_admin2025_2-db-proxy:1.0.0
@@ -178,8 +189,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   db-slave:
     build:
@@ -224,14 +235,17 @@ services:
       - SETGID
       - SYS_NICE
       - IPC_LOCK
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
     deploy:
       resources:
         limits:
-          cpus: '1.5'
-          memory: '1.5G'
+          cpus: "1.5"
+          memory: "1.5G"
         reservations:
-          cpus: '0.5'
-          memory: '512M'
+          cpus: "0.5"
+          memory: "512M"
 
   redis:
     image: redis:7.4.1-alpine3.20
@@ -261,11 +275,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: '512M'
+          cpus: "1.0"
+          memory: "512M"
         reservations:
-          cpus: '0.25'
-          memory: '128M'
+          cpus: "0.25"
+          memory: "128M"
 
   redis-replica:
     image: redis:7.4.1-alpine3.20
@@ -287,7 +301,7 @@ services:
     security_opt:
       - no-new-privileges
     cap_drop:
-      - ALL  
+      - ALL
     cap_add:
       - CHOWN
       - SETUID
@@ -295,8 +309,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   autenticacion:
     build:
@@ -336,8 +350,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   casos:
     build:
@@ -380,8 +394,8 @@ services:
       replicas: 2
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   documentos:
     image: proyectolicitacion_admin2025_2-documentos:1.0.0
@@ -422,8 +436,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   notificaciones:
     build:
@@ -467,11 +481,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '512M'
+          cpus: "0.5"
+          memory: "512M"
         reservations:
-          cpus: '0.25'
-          memory: '256M'
+          cpus: "0.25"
+          memory: "256M"
 
   ia-seguridad:
     build:
@@ -512,11 +526,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.5'
-          memory: '1G'
+          cpus: "1.5"
+          memory: "1G"
         reservations:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   cron:
     build:
@@ -535,8 +549,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   reportes:
     image: proyectolicitacion_admin2025_2-reportes:1.0.0
@@ -572,8 +586,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   frontend:
     build:
@@ -588,7 +602,7 @@ services:
       - "traefik.http.routers.frontend-http.rule=Host(`localhost`)"
       # Define the entrypoint for this router (port 80)
       - "traefik.http.routers.frontend-http.entrypoints=web"
-      
+
       # --- HTTPS Router (para cuando tengamos certificados) ---
       # Rule to catch HTTPS traffic for localhost
       - "traefik.http.routers.frontend-secure.rule=Host(`localhost`)"
@@ -598,7 +612,7 @@ services:
       - "traefik.http.routers.frontend-secure.tls=true"
       # Apply security headers to frontend
       - "traefik.http.routers.frontend-secure.middlewares=security-headers@file"
-      
+
       # Define the backend service and port for Traefik to forward traffic to
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
     depends_on:
@@ -608,19 +622,16 @@ services:
       - backend-network
     restart: unless-stopped
     logging: *default-logging
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: '512M'
-        reservations:
-          cpus: '0.25'
-          memory: '128M'
     security_opt:
       - no-new-privileges
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
 
   prometheus:
     image: prom/prometheus:v2.47.2
@@ -631,8 +642,8 @@ services:
     ports:
       - "9090:9090"
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
     networks:
       - monitoring-network
     restart: unless-stopped
@@ -644,9 +655,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
-
+          cpus: "0.5"
+          memory: "256M"
 
   grafana:
     image: grafana/grafana:10.1.5
@@ -671,8 +681,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   mailhog:
     image: mailhog/mailhog:v1.0.1
@@ -691,8 +701,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   backup-service:
     build:
@@ -726,8 +736,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   # Auto-Failover Daemon
   failover-daemon:
@@ -762,8 +772,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
   # Auto-Failback Daemon (opcional)
   failback-daemon:
@@ -788,7 +798,7 @@ services:
         condition: service_started
     restart: unless-stopped
     profiles:
-      - failback  # Solo se inicia con: docker-compose --profile failback up
+      - failback # Solo se inicia con: docker-compose --profile failback up
     logging: *default-logging
     security_opt:
       - no-new-privileges
@@ -800,8 +810,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '256M'
+          cpus: "0.5"
+          memory: "256M"
 
 networks:
   frontend-network:
@@ -809,25 +819,25 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/24
-  
+
   backend-network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.21.0.0/24
-  
+
   database-network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.22.0.0/24
-  
+
   cache-network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.23.0.0/24
-  
+
   monitoring-network:
     driver: bridge
     ipam:
@@ -851,3 +861,4 @@ volumes:
   proxysql-config:
   proxysql-data:
   traefik-config:
+

@@ -27,6 +27,12 @@ COPY --from=build /app/build /usr/share/nginx/html
 # Copy the custom Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Set permissions for Nginx configuration and web root
+# Nginx user is typically UID 101 in alpine images
+RUN chown -R 101:101 /usr/share/nginx/html \
+    && chmod -R 755 /usr/share/nginx/html \
+    && chmod 644 /etc/nginx/conf.d/default.conf
+
 # Expose port 80
 EXPOSE 80
 
