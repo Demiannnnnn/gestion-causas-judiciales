@@ -77,10 +77,6 @@ services:
             -e 's|__MYSQL_PASSWORD_ORCHESTRATOR_APP__|${MYSQL_PASSWORD_ORCHESTRATOR_APP}|g' \
             /init-target-slave/01-create-replication-user.sql.template > /init-target-slave/01-create-replication-user.sql
 
-        echo 'Fixing permissions for init scripts...'
-        chown -R 999:999 /init-target-master /init-target-slave
-        chmod -R 755 /init-target-master /init-target-slave
-
         echo 'Initialization scripts ready.'
     volumes:
       - ./db/master/mysql:/source-scripts-master:ro
@@ -319,25 +315,22 @@ services:
           memory: "512M"
 
   orchestrator:
-    image: openark/orchestrator:3.2.6
+    build:
+      context: ./orchestrator
     container_name: orchestrator
     ports:
-      - "3000:3000"
+      - "3030:3000"
     environment:
       - ORCHESTRATOR_USER=orchestrator
       - ORCHESTRATOR_PASSWORD=${MYSQL_PASSWORD_ORCHESTRATOR_APP}
-    # Install mysql-client (mariadb-client) on startup to allow the hook script to run
-    command: 
-      - /bin/bash
-      - -c
-      - |
-        apt-get update && apt-get install -y default-mysql-client
-        /entrypoint.sh
+      - MYSQL_PASSWORD_ORCHESTRATOR_APP=${MYSQL_PASSWORD_ORCHESTRATOR_APP}
     volumes:
-      - ./generated-config/orchestrator.conf.json:/etc/orchestrator.conf.json
+      - ./generated-config/orchestrator.conf.json.template:/etc/orchestrator.conf.json.template
       - orchestrator-data:/var/lib/orchestrator
       - ./scripts:/scripts:ro
     networks:
+      - database-network
+      - monitoring-network
     depends_on:
       db-master:
         condition: service_healthy
@@ -708,7 +701,7 @@ services:
       # Rule to catch HTTP traffic for any host (useful for remote access
       - "traefik.http.routers.frontend-http.rule=HostRegexp(`{host:.+}`)"
       # Define the entrypoint for this router (port 80)
-      - "traefik.http.routers.frontend-http.entrypoints=web" 
+      - "traefik.http.routers.frontend-http.entrypoints=web"
       # --- HTTPS Router (para cuando tengamos certificados) ---
       # Rule to catch HTTPS traffic for any host (useful for remote access)
       - "traefik.http.routers.frontend-secure.rule=HostRegexp(`{host:.+}`)"
