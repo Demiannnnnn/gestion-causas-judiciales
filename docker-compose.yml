@@ -427,7 +427,7 @@ services:
       - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`)"
       - "traefik.http.routers.auth.entrypoints=websecure"
       - "traefik.http.routers.auth.tls=true"
@@ -468,7 +468,7 @@ services:
       - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.casos.rule=PathPrefix(`/api/casos`)"
       - "traefik.http.routers.casos.entrypoints=websecure"
       - "traefik.http.routers.casos.tls=true"
@@ -514,7 +514,7 @@ services:
       - documentos-uploads:/app/uploads
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.docs.rule=PathPrefix(`/api/documentos`)"
       - "traefik.http.routers.docs.entrypoints=websecure"
       - "traefik.http.routers.docs.tls=true"
@@ -563,7 +563,7 @@ services:
       - cache-network
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.notificaciones.rule=PathPrefix(`/api/notificaciones`)"
       - "traefik.http.routers.notificaciones.entrypoints=websecure"
       - "traefik.http.routers.notificaciones.tls=true"
@@ -600,7 +600,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.ia-seguridad.rule=PathPrefix(`/api/ia-seguridad`)"
       - "traefik.http.routers.ia-seguridad.entrypoints=websecure"
       - "traefik.http.routers.ia-seguridad.tls=true"
@@ -667,7 +667,7 @@ services:
       - ./backend/common:/app/common
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
       - "traefik.http.routers.reportes.rule=PathPrefix(`/api/reportes`)"
       - "traefik.http.routers.reportes.entrypoints=websecure"
       - "traefik.http.routers.reportes.tls=true"
@@ -695,7 +695,7 @@ services:
     labels:
       # Enable Traefik for this service
       - "traefik.enable=true"
-      - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
+      - "traefik.docker.network=proyectolicitacion_admin2025_2_backend-network"
 
       # --- HTTP Router ---
       # Rule to catch HTTP traffic for any host (useful for remote access
