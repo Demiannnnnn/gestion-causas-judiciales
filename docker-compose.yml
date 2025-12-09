@@ -67,10 +67,14 @@ services:
             -e 's|__MYSQL_PASSWORD_ASISTENTE_APP__|${MYSQL_PASSWORD_ASISTENTE_APP}|g' \
             -e 's|__MYSQL_PASSWORD_SISTEMAS_APP__|${MYSQL_PASSWORD_SISTEMAS_APP}|g' \
             -e 's|__MYSQL_PASSWORD_READONLY_APP__|${MYSQL_PASSWORD_READONLY_APP}|g' \
+            -e 's|__MYSQL_PASSWORD_ORCHESTRATOR_APP__|${MYSQL_PASSWORD_ORCHESTRATOR_APP}|g' \
             /init-target-master/02-grants.sql.template > /init-target-master/02-grants.sql
 
         echo 'Processing SLAVE replication user template...'
         sed -e 's|__MYSQL_REPLICATION_PASSWORD__|${MYSQL_REPLICATION_PASSWORD}|g' \
+            -e 's|__MYSQL_MONITOR_PASSWORD__|${MYSQL_MONITOR_PASSWORD}|g' \
+            -e 's|__MYSQL_MONITOR_USER__|${MYSQL_MONITOR_USER}|g' \
+            -e 's|__MYSQL_PASSWORD_ORCHESTRATOR_APP__|${MYSQL_PASSWORD_ORCHESTRATOR_APP}|g' \
             /init-target-slave/01-create-replication-user.sql.template > /init-target-slave/01-create-replication-user.sql
 
         echo 'Fixing permissions for init scripts...'
@@ -259,6 +263,97 @@ services:
           cpus: "0.5"
           memory: "512M"
 
+  db-slave-2:
+    build:
+      context: ./db/slave
+    container_name: db-slave-2
+    depends_on:
+      db-master:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    env_file: .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_MASTER_HOST: db-master
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-appdb}
+      MYSQL_USER: ${MYSQL_USER:-appuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
+    command:
+      - --server-id=3
+      - --relay-log=mysql-relay-bin
+      - --log-slave-updates=ON
+      - --read-only=ON
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --ssl-ca=/etc/mysql/certs/ca.pem
+      - --ssl-cert=/etc/mysql/certs/client-cert.pem
+      - --ssl-key=/etc/mysql/certs/client-key.pem
+    volumes:
+      - mysql-slave-2-data:/var/lib/mysql
+      - mysql-files-data:/var/lib/mysql-files
+      - db-slave-init-scripts:/docker-entrypoint-initdb.d:ro
+      - ./db/certs:/etc/mysql/certs:ro
+    networks:
+      - database-network
+    restart: always
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - SYS_NICE
+      - IPC_LOCK
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: "1.5G"
+        reservations:
+          cpus: "0.5"
+          memory: "512M"
+
+  orchestrator:
+    image: openark/orchestrator:3.2.6
+    container_name: orchestrator
+    ports:
+      - "3000:3000"
+    environment:
+      - ORCHESTRATOR_USER=orchestrator
+      - ORCHESTRATOR_PASSWORD=${MYSQL_PASSWORD_ORCHESTRATOR_APP}
+    # Install mysql-client (mariadb-client) on startup to allow the hook script to run
+    command: 
+      - /bin/bash
+      - -c
+      - |
+        apt-get update && apt-get install -y default-mysql-client
+        /entrypoint.sh
+    volumes:
+      - ./generated-config/orchestrator.conf.json:/etc/orchestrator.conf.json
+      - orchestrator-data:/var/lib/orchestrator
+      - ./scripts:/scripts:ro
+    networks:
+    depends_on:
+      db-master:
+        condition: service_healthy
+      db-slave:
+        condition: service_started
+    restart: always
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"
+
   redis:
     image: redis:7.4.1-alpine3.20
     container_name: redis
@@ -331,7 +426,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     volumes:
@@ -371,7 +466,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - SECRET_KEY=${CASOS_SECRET_KEY}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - REDIS_URL=redis://redis:6379/1
@@ -417,7 +512,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - UPLOAD_FOLDER=/app/uploads
     volumes:
@@ -459,7 +554,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - REDIS_URL=redis://redis:6379/2
       - MAIL_SERVER=${MAIL_SERVER:-mailhog}
@@ -572,7 +667,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-master:3306/${MYSQL_DATABASE}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     volumes:
       - ./backend/reportes/app:/app
@@ -790,80 +885,6 @@ services:
           cpus: "0.5"
           memory: "256M"
 
-  # Auto-Failover Daemon
-  failover-daemon:
-    build:
-      context: .
-      dockerfile: monitoring/failover/Dockerfile
-    container_name: failover-daemon
-    env_file: .env
-    command: /scripts/auto-failover-daemon.sh
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./.env:/config/.env:ro
-    networks:
-      - database-network
-      - monitoring-network
-    depends_on:
-      db-master:
-        condition: service_started
-      db-slave:
-        condition: service_started
-      db-proxy:
-        condition: service_started
-    restart: unless-stopped
-    logging: *default-logging
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_RAW
-      - NET_ADMIN
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: "256M"
-
-  # Auto-Failback Daemon (opcional)
-  failback-daemon:
-    build:
-      context: .
-      dockerfile: monitoring/failover/Dockerfile
-    container_name: failback-daemon
-    env_file: .env
-    command: /scripts/auto-failback-daemon.sh
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./.env:/config/.env:ro
-    networks:
-      - database-network
-      - monitoring-network
-    depends_on:
-      db-master:
-        condition: service_started
-      db-slave:
-        condition: service_started
-      db-proxy:
-        condition: service_started
-    restart: unless-stopped
-    profiles:
-      - failback # Solo se inicia con: docker-compose --profile failback up
-    logging: *default-logging
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_RAW
-      - NET_ADMIN
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: "256M"
-
 networks:
   frontend-network:
     driver: bridge
@@ -898,7 +919,9 @@ networks:
 volumes:
   mysql-master-data:
   mysql-slave-data:
+  mysql-slave-2-data:
   mysql-files-data:
+  orchestrator-data:
   redis-data:
   redis-replica-data:
   documentos-uploads:
