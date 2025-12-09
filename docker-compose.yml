@@ -164,7 +164,8 @@ services:
   db-proxy:
     image: proyectolicitacion_admin2025_2-db-proxy:1.0.0
     build:
-      context: ./db/proxy
+      context: .
+      dockerfile: db/proxy/Dockerfile
     container_name: db-proxy
     env_file: .env
     volumes:
