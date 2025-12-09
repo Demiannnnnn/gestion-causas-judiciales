@@ -420,6 +420,10 @@ services:
       - FLASK_APP=app.py
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP}@db-proxy:6033/${MYSQL_DATABASE}
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     volumes:
@@ -460,6 +464,10 @@ services:
       - FLASK_APP=app.py
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP}@db-proxy:6033/${MYSQL_DATABASE}
       - SECRET_KEY=${CASOS_SECRET_KEY}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - REDIS_URL=redis://redis:6379/1
@@ -506,6 +514,10 @@ services:
       - FLASK_APP=app.py
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP}@db-proxy:6033/${MYSQL_DATABASE}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - UPLOAD_FOLDER=/app/uploads
     volumes:
@@ -548,6 +560,10 @@ services:
       - FLASK_APP=app.py
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP}@db-proxy:6033/${MYSQL_DATABASE}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - REDIS_URL=redis://redis:6379/2
       - MAIL_SERVER=${MAIL_SERVER:-mailhog}
@@ -661,6 +677,10 @@ services:
       - FLASK_APP=app.py
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ABOGADO=mysql+pymysql://abogado:${MYSQL_PASSWORD_ABOGADO_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ASISTENTE=mysql+pymysql://asistente:${MYSQL_PASSWORD_ASISTENTE_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_ADMINISTRADOR=mysql+pymysql://administrador:${MYSQL_PASSWORD_ADMIN_APP}@db-proxy:6033/${MYSQL_DATABASE}
+      - DATABASE_URL_SISTEMAS=mysql+pymysql://sistemas:${MYSQL_PASSWORD_SISTEMAS_APP}@db-proxy:6033/${MYSQL_DATABASE}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     volumes:
       - ./backend/reportes/app:/app
