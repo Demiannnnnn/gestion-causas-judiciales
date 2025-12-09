@@ -88,7 +88,7 @@
           "refId": "A"
         }
       ],
-      "title": "Estado de Servicios (UP/DOWN)",
+      "title": "Estado General de Servicios",
       "type": "stat"
     },
     {
@@ -108,11 +108,11 @@
       },
       "targets": [
         {
-          "expr": "{job=\"docker\"} |= \"error\"",
+          "expr": "{job=\"docker\", container=~\"$container\"} |= \"error\"",
           "refId": "A"
         }
       ],
-      "title": "🚨 Logs de ERRORES (Filtro: \"error\")",
+      "title": "🚨 Errores en $container",
       "type": "logs"
     },
     {
@@ -132,11 +132,11 @@
       },
       "targets": [
         {
-          "expr": "{job=\"docker\"} |= \"warn\"",
+          "expr": "{job=\"docker\", container=~\"$container\"} |= \"warn\"",
           "refId": "A"
         }
       ],
-      "title": "⚠️ Logs de ADVERTENCIA (Filtro: \"warn\")",
+      "title": "⚠️ Advertencias en $container",
       "type": "logs"
     },
     {
@@ -156,11 +156,11 @@
       },
       "targets": [
         {
-          "expr": "{job=\"docker\"}",
+          "expr": "{job=\"docker\", container=~\"$container\"}",
           "refId": "A"
         }
       ],
-      "title": "📜 Todos los Logs del Sistema (Docker)",
+      "title": "📜 Logs Completos de $container",
       "type": "logs"
     }
   ],
@@ -171,7 +171,43 @@
     "monitoring"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": "Loki",
+        "definition": "label_values(container)",
+        "description": "Filtrar logs por contenedor",
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": "Servicio / Contenedor",
+        "multi": true,
+        "name": "container",
+        "options": [],
+        "query": {
+          "query": "label_values(container)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      }
+    ]
   },
   "time": {
     "from": "now-1h",
@@ -181,5 +217,5 @@
   "timezone": "",
   "title": "Sistema Judicial - Monitor Central",
   "uid": "main-system-logs",
-  "version": 1
+  "version": 2
 }
