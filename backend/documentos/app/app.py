@@ -5,6 +5,9 @@ from common.database import db_manager
 from common.models import Documento
 from common.auth import token_required
 from werkzeug.utils import secure_filename
+from common.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 app = Flask(__name__)
 CORS(app)
@@ -85,9 +88,9 @@ def eliminar_documento(current_user, id_documento):
             if os.path.exists(documento.ruta_storage):
                 os.remove(documento.ruta_storage)
             else:
-                print(f"Advertencia: No se encontró el archivo {documento.ruta_storage} para eliminar.")
+                logger.warning(f"Advertencia: No se encontró el archivo {documento.ruta_storage} para eliminar.")
         except OSError as e:
-            print(f"Error eliminando archivo {documento.ruta_storage}: {e}")
+            logger.error(f"Error eliminando archivo {documento.ruta_storage}", exc_info=True)
 
         session.delete(documento)
     
