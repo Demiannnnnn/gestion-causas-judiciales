@@ -610,14 +610,14 @@ services:
       - "traefik.docker.network=licitacion_sistemacausasjudiciales_backend-network"
 
       # --- HTTP Router ---
-      # Rule to catch HTTP traffic for localhost
-      - "traefik.http.routers.frontend-http.rule=Host(`localhost`)"
+      # Rule to catch HTTP traffic for any host (useful for remote access
+      - "traefik.http.routers.frontend-http.rule=HostRegexp(`{host:.+}`)"
       # Define the entrypoint for this router (port 80)
-      - "traefik.http.routers.frontend-http.entrypoints=web"
-
+      - "traefik.http.routers.frontend-http.entrypoints=web" 
       # --- HTTPS Router (para cuando tengamos certificados) ---
-      # Rule to catch HTTPS traffic for localhost
-      - "traefik.http.routers.frontend-secure.rule=Host(`localhost`)"
+      # Rule to catch HTTPS traffic for any host (useful for remote access)
+      - "traefik.http.routers.frontend-secure.rule=HostRegexp(`{host:.+}`)"
+
       # Define the entrypoint for this router (port 443)
       - "traefik.http.routers.frontend-secure.entrypoints=websecure"
       # Enable TLS (HTTPS) for this router
