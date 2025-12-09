@@ -31,6 +31,28 @@ Algunas vulnerabilidades pueden ser difíciles de remediar o pueden tener un imp
 | --- | --- | --- |
 | `CVE-2023-XXXX` | `libwhatever` | **Riesgo bajo:** La funcionalidad vulnerable no es utilizada por la aplicación. **Sin parche disponible:** El proveedor no ha liberado una versión parcheada y el riesgo es bajo. |
 
+## Vulnerabilidades Aceptadas (Análisis Post-Remediación)
+
+Después de aplicar las actualizaciones de paquetes y de imágenes base, las siguientes vulnerabilidades de severidad `HIGH` o `CRITICAL` persisten en el sistema. Se aceptan por las siguientes razones:
+
+### 1. Vulnerabilidades en `db-master` y `db-slave`
+
+| ID Vulnerabilidad | Librería | Justificación de Aceptación |
+| --- | --- | --- |
+| `CVE-2025-6965` | `sqlite-libs` | **Heredado de la imagen base:** Esta vulnerabilidad está presente en la imagen oficial `mysql:8.4.7`. La remediación depende del equipo de MySQL. |
+| `CVE-2025-66418` | `urllib3` | **Heredado de la imagen base:** `urllib3` es una dependencia de `mysql-shell`, que viene pre-instalado en la imagen `mysql:8.4.7`. No se puede actualizar directamente. |
+| `CVE-2025-66471` | `urllib3` | **Heredado de la imagen base:** `urllib3` es una dependencia de `mysql-shell`, que viene pre-instalado en la imagen `mysql:8.4.7`. No se puede actualizar directamente. |
+| `CVE-2025-58183` | `gosu` | **Heredado de la imagen base:** `gosu` viene pre-instalado en la imagen `mysql:8.4.7` y fue compilado con una versión vulnerable de Go. La remediación depende del equipo de MySQL. |
+| `CVE-2025-58186` | `gosu` | **Heredado de la imagen base:** `gosu` viene pre-instalado en la imagen `mysql:8.4.7` y fue compilado con una versión vulnerable de Go. La remediación depende del equipo de MySQL. |
+| `CVE-2025-58187` | `gosu` | **Heredado de la imagen base:** `gosu` viene pre-instalado en la imagen `mysql:8.4.7` y fue compilado con una versión vulnerable de Go. La remediación depende del equipo de MySQL. |
+| `CVE-2025-61729` | `gosu` | **Heredado de la imagen base:** `gosu` viene pre-instalado en la imagen `mysql:8.4.7` y fue compilado con una versión vulnerable de Go. La remediación depende del equipo de MySQL. |
+
+### 2. Vulnerabilidades en Servicios Basados en Debian
+
+| Servicio | Vulnerabilidades | Justificación de Aceptación |
+| --- | --- | --- |
+| `autenticacion`, `casos`, `documentos`, `ia-seguridad`, `notificaciones` | Varias vulnerabilidades `HIGH` en paquetes del S.O. | **Heredado de la imagen base:** A pesar de ejecutar `apt-get upgrade`, estas vulnerabilidades persisten en la imagen base `python:3.11-slim`. La solución más completa sería migrar a una imagen base diferente (e.g., `distroless` o una versión más nueva de `slim`), lo cual está fuera del alcance de esta fase del proyecto. El riesgo se mitiga parcialmente al correr los contenedores con un usuario no privilegiado y con capacidades reducidas. |
+
 ## 3. Proceso de Remediación
 
 1.  **Escaneo:** Se ejecuta el script `scripts/security/scan-vulnerabilities.sh` para obtener un reporte consolidado de vulnerabilidades.
