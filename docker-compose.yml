@@ -168,7 +168,6 @@ services:
     container_name: db-proxy
     env_file: .env
     volumes:
-      - ./generated-config/proxysql.cnf:/etc/proxysql/proxysql.cnf:ro
       - proxysql-data:/var/lib/proxysql
     ports:
       - "6033:6033"
