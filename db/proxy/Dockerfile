@@ -1,9 +1,8 @@
 FROM proxysql/proxysql:2.6.5
 
-# Install Python3 and pip
+# Install Python3 (no pip needed as script uses standard library)
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y python3 python3-pip && \
-    pip3 install PyMySQL
+    apt-get install -y python3
 
 # Copy the config generation script and template
 # Note: These paths are relative to the build context (project root)
@@ -13,6 +12,7 @@ COPY ./db/proxy/proxysql.cnf.template /usr/local/bin/proxysql.cnf.template
 # Script de inicio que elimina la base de datos interna para forzar lectura del config
 RUN echo '#!/bin/sh' > /start-proxysql.sh && \
     echo 'mkdir -p /var/lib/proxysql' >> /start-proxysql.sh && \
+    echo 'mkdir -p /etc/proxysql' >> /start-proxysql.sh && \
     echo 'chown -R proxysql:proxysql /var/lib/proxysql' >> /start-proxysql.sh && \
     echo 'rm -f /var/lib/proxysql/proxysql.db' >> /start-proxysql.sh && \
     echo '' >> /start-proxysql.sh && \
