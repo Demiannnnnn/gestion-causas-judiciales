@@ -7,6 +7,10 @@ import os
 
 from common.database import db_manager
 from common.models import Causa, Tribunal, Parte, CausaParte, Movimiento
+from common.auth import token_required
+from common.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ThatWasEpic')
@@ -14,8 +18,9 @@ CORS(app)  # Habilitar CORS para todas las rutas
 
 # Endpoint para obtener todos los casos
 @app.route('/', methods=['GET'])
-def get_casos():
-    with db_manager.get_session() as session:
+@token_required
+def get_casos(current_user):
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         casos = session.query(Causa).all()
         return jsonify([c.to_json() for c in casos])
 
@@ -33,8 +38,9 @@ def get_tribunales():
 
 # Endpoint para obtener un caso por ID
 @app.route('/<int:id>', methods=['GET'])
-def get_caso(id):
-    with db_manager.get_session() as session:
+@token_required
+def get_caso(current_user, id):
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         caso = session.query(Causa).filter(Causa.id_causa == id).first()
         if caso:
             return jsonify(caso.to_json())
@@ -42,7 +48,8 @@ def get_caso(id):
 
 # Endpoint para crear un nuevo caso
 @app.route('/', methods=['POST'])
-def create_caso():
+@token_required
+def create_caso(current_user):
     data = request.json
     
     # Parsear fecha_inicio si viene como string
@@ -62,7 +69,7 @@ def create_caso():
         estado=data.get('estado', 'ACTIVA'),
         descripcion=data.get('descripcion')
     )
-    with db_manager.get_session() as session:
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         try:
             session.add(nuevo_caso)
             session.flush() # Para obtener el ID antes del commit
@@ -83,8 +90,9 @@ def create_caso():
 
 # Endpoint para actualizar un caso
 @app.route('/<int:id>', methods=['PUT'])
-def update_caso(id):
-    with db_manager.get_session() as session:
+@token_required
+def update_caso(current_user, id):
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         caso = session.query(Causa).filter(Causa.id_causa == id).first()
         if not caso:
             return jsonify({'error': 'Caso no encontrado'}), 404
@@ -111,12 +119,13 @@ def send_notification(data):
     try:
         requests.post("http://notificaciones:8003/send", json=data)
     except Exception as e:
-        print(f"Error sending notification: {e}")
+        logger.error(f"Error sending notification", exc_info=True)
 
 # Endpoint para eliminar un caso
 @app.route('/<int:id>', methods=['DELETE'])
-def delete_caso(id):
-    with db_manager.get_session() as session:
+@token_required
+def delete_caso(current_user, id):
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         caso = session.query(Causa).filter(Causa.id_causa == id).first()
         if not caso:
             return jsonify({'error': 'Caso no encontrado'}), 404
@@ -126,8 +135,9 @@ def delete_caso(id):
 
 # Endpoint para obtener partes de un caso
 @app.route('/<int:id>/partes', methods=['GET'])
-def get_caso_partes(id):
-    with db_manager.get_session() as session:
+@token_required
+def get_caso_partes(current_user, id):
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         caso = session.query(Causa).filter(Causa.id_causa == id).first()
         if not caso:
             return jsonify({'error': 'Caso no encontrado'}), 404
@@ -147,8 +157,9 @@ def get_caso_partes(id):
 
 # Endpoint para obtener movimientos de un caso
 @app.route('/<int:id>/movimientos', methods=['GET'])
-def get_caso_movimientos(id):
-    with db_manager.get_session() as session:
+@token_required
+def get_caso_movimientos(current_user, id):
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         caso = session.query(Causa).filter(Causa.id_causa == id).first()
         if not caso:
             return jsonify({'error': 'Caso no encontrado'}), 404
@@ -163,8 +174,9 @@ def get_caso_movimientos(id):
 
 # Endpoint para crear un nuevo movimiento en un caso
 @app.route('/<int:id>/movimientos', methods=['POST'])
-def create_movimiento(id):
-    with db_manager.get_session() as session:
+@token_required
+def create_movimiento(current_user, id):
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         caso = session.query(Causa).filter(Causa.id_causa == id).first()
         if not caso:
             return jsonify({'error': 'Caso no encontrado'}), 404
@@ -203,7 +215,7 @@ def create_movimiento(id):
             try:
                 requests.post("http://notificaciones:8003/vencimientos")
             except Exception as e:
-                print(f"Error calling vencimientos endpoint: {e}")
+                logger.error(f"Error calling vencimientos endpoint", exc_info=True)
         
         return jsonify({'id_movimiento': nuevo_movimiento.id_movimiento}), 201
 

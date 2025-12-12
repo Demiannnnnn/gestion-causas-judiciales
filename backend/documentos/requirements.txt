@@ -2,13 +2,16 @@
 Flask==3.0.0
 
 #conexion entre front y back
-Flask-CORS==4.0.0
+Flask-CORS==4.0.2
 
 #sql
 SQLAlchemy==2.0.23
 mysqlclient==2.2.0
-PyMySQL==1.1.0
+PyMySQL==1.1.1
 cryptography==43.0.0
 
 #env
 python-dotenv==1.0.0
+
+#jwt
+PyJWT==2.8.0

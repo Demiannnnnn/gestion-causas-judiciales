@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
 # Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     gcc \
     default-libmysqlclient-dev \
     pkg-config \
@@ -11,17 +11,21 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copiar requirements
-COPY requirements.txt .
+COPY ia-seguridad/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copiar módulo común
+COPY common/ /app/common/
+
 # Copiar código de la aplicación
-COPY ./app .
+COPY ia-seguridad/app/ /app/
+
+# NOTA: Este servicio requiere acceso root para interactuar con Docker socket
+# Justificación técnica: ia-seguridad necesita acceso al daemon de Docker
+# para monitorear y analizar contenedores del sistema
 
 # Exponer puerto
 EXPOSE 8005
-
-# Nota: Se ejecuta como root para acceder al socket de Docker
-# El socket está montado en modo solo lectura (ro) para seguridad
 
 # Comando por defecto
 CMD ["python", "app.py"]

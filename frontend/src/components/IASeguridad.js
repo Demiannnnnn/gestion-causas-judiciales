@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import './IASeguridad.css';
 
 const API_URL = '/api/ia-seguridad';
@@ -11,15 +12,17 @@ function IASeguridad() {
   const [selectedContainer, setSelectedContainer] = useState('');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { token } = useAuth();
 
   useEffect(() => {
     fetchData();
     // Actualizar cada 30 segundos
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [token]); // Add token to dependency array just in case
 
   const fetchData = async () => {
+    if (!token) return; // Don't fetch if no token
     try {
       await Promise.all([
         fetchAlerts(),
@@ -35,7 +38,10 @@ function IASeguridad() {
 
   const fetchAlerts = async () => {
     try {
-      const response = await fetch(`${API_URL}/alerts?status=open`);
+      const response = await fetch(`${API_URL}/alerts?status=open`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.status === 401) return; 
       const data = await response.json();
       if (data.success) {
         setAlerts(data.alerts);
@@ -47,7 +53,10 @@ function IASeguridad() {
 
   const fetchSystemStats = async () => {
     try {
-      const response = await fetch(`${API_URL}/stats/system`);
+      const response = await fetch(`${API_URL}/stats/system`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.status === 401) return;
       const data = await response.json();
       if (data.success) {
         setSystemStats(data.stats);
@@ -59,7 +68,10 @@ function IASeguridad() {
 
   const fetchContainerHealth = async () => {
     try {
-      const response = await fetch(`${API_URL}/stats/containers`);
+      const response = await fetch(`${API_URL}/stats/containers`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.status === 401) return;
       const data = await response.json();
       if (data.success) {
         setContainerHealth(data.containers);
@@ -74,7 +86,10 @@ function IASeguridad() {
     try {
       const response = await fetch(`${API_URL}/analyze/logs`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ since: '1h' })
       });
       const data = await response.json();
@@ -98,7 +113,9 @@ function IASeguridad() {
     
     setAnalyzing(true);
     try {
-      const response = await fetch(`${API_URL}/analyze/container/${selectedContainer}?since=1h`);
+      const response = await fetch(`${API_URL}/analyze/container/${selectedContainer}?since=1h`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await response.json();
       if (data.success) {
         setAnalysisResult(data.analysis);
@@ -115,7 +132,10 @@ function IASeguridad() {
     try {
       const response = await fetch(`${API_URL}/anomalies/detect`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({})
       });
       const data = await response.json();
@@ -132,7 +152,10 @@ function IASeguridad() {
     try {
       const response = await fetch(`${API_URL}/alerts/${alertId}/resolve`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ note: 'Resuelto desde dashboard' })
       });
       if (response.ok) {

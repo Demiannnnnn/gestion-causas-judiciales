@@ -25,9 +25,9 @@ class LogAnalyzer:
         gemini_api_key = os.getenv('GEMINI_API_KEY')
         if gemini_api_key:
             genai.configure(api_key=gemini_api_key)
-            # Usar gemini-2.0-flash-lite que tiene más requests gratuitos
-            self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-lite')
-            logger.info("Gemini configurado con modelo: gemini-2.0-flash-lite")
+            # Usar gemini-1.5-flash que es el modelo estándar y eficiente
+            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+            logger.info("Gemini configurado con modelo: gemini-1.5-flash")
             logger.info(f"Rate limiting activado: {self.min_request_interval}s entre requests, max {self.max_containers_per_batch} contenedores por lote")
         else:
             self.gemini_model = None

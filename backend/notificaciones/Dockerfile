@@ -1,25 +1,32 @@
-FROM python:3.11-slim
+# Stage 1: Build dependencies
+FROM python:3.11-slim AS builder
 
-WORKDIR /app
+RUN apt-get update && apt-get upgrade -y
 
-# Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
+RUN apt-get install -y \
     gcc \
     default-libmysqlclient-dev \
     pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Stage 2: Runtime
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get upgrade -y
+
+RUN apt-get install -y \
+    default-libmysqlclient-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements
-COPY requirements.txt .
-
-# Instalar dependencias Python
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copiar proyecto
+WORKDIR /app
+COPY --from=builder /install /usr/local
 COPY . .
 
-# Crear usuario no-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 

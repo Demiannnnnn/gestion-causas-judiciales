@@ -3,7 +3,11 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from common.database import db_manager
 from common.models import Documento
+from common.auth import token_required
 from werkzeug.utils import secure_filename
+from common.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 app = Flask(__name__)
 CORS(app)
@@ -14,7 +18,8 @@ app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', '/app/uploads')
 # --- Endpoints de la API ---
 
 @app.route('/causa/<int:id_causa>/documentos', methods=['POST'])
-def upload_documento(id_causa):
+@token_required
+def upload_documento(current_user, id_causa):
     if 'file' not in request.files:
         return jsonify({'error': 'No se encontró el archivo'}), 400
     
@@ -23,8 +28,7 @@ def upload_documento(id_causa):
         return jsonify({'error': 'No se seleccionó ningún archivo'}), 400
 
     tipo = request.form.get('tipo', 'OTRO')
-    # Placeholder para el ID de usuario (debería venir de un token JWT)
-    subido_por_id = 1
+    subido_por_id = current_user['id_usuario']
 
     if file:
         filename = secure_filename(file.filename)
@@ -33,7 +37,7 @@ def upload_documento(id_causa):
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        with db_manager.get_session() as session:
+        with db_manager.get_session(role=current_user.get('rol')) as session:
             nuevo_documento = Documento(
                 id_causa=id_causa,
                 tipo=tipo,
@@ -48,14 +52,16 @@ def upload_documento(id_causa):
         return jsonify(result), 201
 
 @app.route('/causa/<int:id_causa>/documentos', methods=['GET'])
-def get_documentos_por_causa(id_causa):
-    with db_manager.get_session() as session:
+@token_required
+def get_documentos_por_causa(current_user, id_causa):
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         documentos = session.query(Documento).filter_by(id_causa=id_causa).all()
         return jsonify([d.to_json() for d in documentos]), 200
 
 @app.route('/<int:id_documento>', methods=['GET'])
-def descargar_documento(id_documento):
-    with db_manager.get_session() as session:
+@token_required
+def descargar_documento(current_user, id_documento):
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         documento = session.query(Documento).get(id_documento)
         if not documento:
             return jsonify({'error': 'Documento no encontrado'}), 404
@@ -70,8 +76,9 @@ def descargar_documento(id_documento):
         )
 
 @app.route('/<int:id_documento>', methods=['DELETE'])
-def eliminar_documento(id_documento):
-    with db_manager.get_session() as session:
+@token_required
+def eliminar_documento(current_user, id_documento):
+    with db_manager.get_session(role=current_user.get('rol')) as session:
         documento = session.query(Documento).get(id_documento)
         if not documento:
             return jsonify({'error': 'Documento no encontrado'}), 404
@@ -81,9 +88,9 @@ def eliminar_documento(id_documento):
             if os.path.exists(documento.ruta_storage):
                 os.remove(documento.ruta_storage)
             else:
-                print(f"Advertencia: No se encontró el archivo {documento.ruta_storage} para eliminar.")
+                logger.warning(f"Advertencia: No se encontró el archivo {documento.ruta_storage} para eliminar.")
         except OSError as e:
-            print(f"Error eliminando archivo {documento.ruta_storage}: {e}")
+            logger.error(f"Error eliminando archivo {documento.ruta_storage}", exc_info=True)
 
         session.delete(documento)
     
