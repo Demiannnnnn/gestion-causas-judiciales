@@ -314,7 +314,8 @@ Responde en formato estructurado y claro.
                 logger.info(f"Análisis automático: limitado a {len(container_names)} contenedores prioritarios")
             
             # LÍMITE DE LOTE: Analizar máximo N contenedores a la vez
-            if len(container_names) > self.max_containers_per_batch:
+            rate_limited = len(container_names) > self.max_containers_per_batch
+            if rate_limited:
                 logger.warning(f"Solicitados {len(container_names)} contenedores, limitando a {self.max_containers_per_batch}")
                 container_names = container_names[:self.max_containers_per_batch]
             
@@ -323,7 +324,7 @@ Responde en formato estructurado y claro.
                 "critical_issues": [],
                 "warnings": [],
                 "summary": {},
-                "rate_limited": len(container_names) > self.max_containers_per_batch
+                "rate_limited": rate_limited
             }
             
             logger.info(f"Analizando {len(container_names)} contenedores con {ai_provider}")
