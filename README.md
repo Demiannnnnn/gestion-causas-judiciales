@@ -2501,3 +2501,37 @@ curl http://localhost/api/casos
 
 ---
 
+
+## Tests y CI
+
+### Backend (pytest)
+
+Los tests unitarios viven en `backend/tests/` y no necesitan MySQL ni Docker:
+usan SQLite en memoria en lugar de `db_manager` y simulan SMTP, Docker y las
+llamadas HTTP entre servicios.
+
+```bash
+cd backend
+python3.11 -m venv .venv && . .venv/bin/activate
+pip install -r requirements-test.txt
+python -m pytest
+```
+
+### Frontend (Jest / React Testing Library)
+
+```bash
+cd frontend
+npm ci
+CI=true npm test -- --watchAll=false
+```
+
+### GitHub Actions
+
+`.github/workflows/ci.yml` se ejecuta en cada push y pull request:
+
+- **Backend**: pytest con Python 3.11.
+- **Frontend**: tests y `npm run build` con Node 20.
+- **Imágenes Docker**: `docker build` (sin push) de cada servicio de la aplicación.
+
+No hay workflow de despliegue: el despliegue se hace a mano con `docker compose`
+(ver `start.sh`).
