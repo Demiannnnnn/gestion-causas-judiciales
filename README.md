@@ -1,5 +1,7 @@
 # 🏛️ Sistema de Gestión de Causas Judiciales
 
+[![CI](https://github.com/Demiannnnnn/gestion-causas-judiciales/actions/workflows/ci.yml/badge.svg?branch=tests/unitarios-y-ci)](https://github.com/Demiannnnnn/gestion-causas-judiciales/actions/workflows/ci.yml)
+
 ## Información del Proyecto
 
 ### Licitación
@@ -20,6 +22,26 @@ El sistema moderniza y digitaliza la gestión integral de causas judiciales, pro
 - Generación de reportes y estadísticas
 - Control de acceso según roles y permisos
 - Análisis de seguridad con IA
+
+---
+
+## Cómo levantar el sistema
+
+### Requisitos previos
+- Docker y Docker Compose
+- Archivo `.env` configurado (copiar de `.env.example`)
+
+### Inicio rápido con script
+El repositorio incluye `start.sh`, un script interactivo que valida el archivo `.env`, genera las configuraciones requeridas e inicia los servicios:
+```bash
+./start.sh
+```
+
+### Inicio manual con Docker Compose
+```bash
+cp .env.example .env
+docker compose up -d
+```
 
 ---
 
@@ -121,12 +143,12 @@ El sistema moderniza y digitaliza la gestión integral de causas judiciales, pro
 |------------|-----------|---------------|
 | **Orquestación** | Docker Compose | Requisito obligatorio del proyecto |
 | **API Gateway** | Traefik | Load balancing automático y configuración simple |
-| **Backend** | Python (FastAPI) | Alto rendimiento para APIs REST |
-| **Frontend** | React + Nginx | SPA moderna con servidor web robusto |
+| **Backend** | Python (Flask + SQLAlchemy) | Microservicios REST modulares y desacoplados |
+| **Frontend** | React + Nginx | SPA moderna con Bootstrap |
 | **BD Principal** | MySQL 8.0 | Replicación Master-Replica para HA |
 | **Caché** | Redis 7 | Alto rendimiento con soporte para Sentinel |
 | **Monitoreo** | Prometheus + Grafana | Estándar de la industria |
-| **IA** | Ollama (Llama2) | Análisis de seguridad en logs |
+| **IA** | Google Gemini / OpenAI | Análisis de seguridad y anomalías en logs |
 
 ---
 
@@ -2523,6 +2545,7 @@ python -m pytest
 cd frontend
 npm ci
 CI=true npm test -- --watchAll=false
+CI=true npm run build
 ```
 
 ### GitHub Actions
