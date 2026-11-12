@@ -19,8 +19,8 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -37,8 +37,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
@@ -49,12 +49,9 @@ jobs:
         env:
           CI: "true"
       - name: Build de producción
-        # CI=false: react-scripts trataría como error dos avisos de
-        # react-hooks/exhaustive-deps (CasoDetail.js, IASeguridad.js) que no
-        # rompen la app. Se mantienen visibles en el log del build.
         run: npm run build
         env:
-          CI: "false"
+          CI: "true"
 
   docker-build:
     name: Imagen ${{ matrix.name }}
@@ -71,6 +68,6 @@ jobs:
           - { name: ia-seguridad, context: backend, dockerfile: backend/ia-seguridad/Dockerfile }
           - { name: frontend, context: frontend, dockerfile: frontend/Dockerfile }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: docker build (sin push)
         run: docker build -f ${{ matrix.dockerfile }} -t causas/${{ matrix.name }}:ci ${{ matrix.context }}

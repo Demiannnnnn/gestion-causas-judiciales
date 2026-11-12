@@ -94,6 +94,25 @@ def test_actualizar_caso(client, db):
     assert client.put("/999", headers=H, json={}).status_code == 404
 
 
+def test_actualizar_caso_fecha_inicio_valida(client, db):
+    resp = client.put("/10", headers=H, json={"fecha_inicio": "2024-07-20"})
+    assert resp.status_code == 200
+    db.expire_all()
+    caso = db.get(Causa, 10)
+    assert caso.fecha_inicio == datetime.date(2024, 7, 20)
+    assert isinstance(caso.fecha_inicio, datetime.date)
+
+
+def test_actualizar_caso_fecha_inicio_invalida_devuelve_400(client, db):
+    fecha_original = db.get(Causa, 10).fecha_inicio
+    resp = client.put("/10", headers=H, json={"fecha_inicio": "20-07-2024"})
+    assert resp.status_code == 400
+    assert resp.get_json() == {"error": "Formato de fecha inválido. Usar YYYY-MM-DD"}
+    db.expire_all()
+    caso = db.get(Causa, 10)
+    assert caso.fecha_inicio == fecha_original
+
+
 def test_eliminar_caso(client, db):
     assert client.delete("/10", headers=H).status_code == 200
     db.expire_all()
@@ -147,3 +166,22 @@ def test_movimiento_con_fecha_invalida_devuelve_400(client, db):
 def test_movimiento_en_caso_inexistente_devuelve_404(client):
     resp = client.post("/999/movimientos", headers=H, json={"descripcion": "x", "tipo": "OTRO"})
     assert resp.status_code == 404
+
+
+def test_crear_movimiento_sin_descripcion_o_tipo_devuelve_400(client, db):
+    resp_sin_tipo = client.post("/10/movimientos", headers=H, json={"descripcion": "Sin tipo"})
+    assert resp_sin_tipo.status_code == 400
+    assert "error" in resp_sin_tipo.get_json()
+
+    resp_sin_desc = client.post("/10/movimientos", headers=H, json={"tipo": "AUDIENCIA"})
+    assert resp_sin_desc.status_code == 400
+    assert "error" in resp_sin_desc.get_json()
+
+    assert db.query(Movimiento).count() == 0
+
+
+def test_crear_movimiento_body_no_json_devuelve_400(client, db):
+    resp = client.post("/10/movimientos", headers=H, data="no-json", content_type="text/plain")
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+    assert db.query(Movimiento).count() == 0
