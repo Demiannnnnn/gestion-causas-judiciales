@@ -49,12 +49,9 @@ jobs:
         env:
           CI: "true"
       - name: Build de producción
-        # CI=false: react-scripts trataría como error dos avisos de
-        # react-hooks/exhaustive-deps (CasoDetail.js, IASeguridad.js) que no
-        # rompen la app. Se mantienen visibles en el log del build.
         run: npm run build
         env:
-          CI: "false"
+          CI: "true"
 
   docker-build:
     name: Imagen ${{ matrix.name }}

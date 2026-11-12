@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiFetch from '../utils/api';
 
@@ -20,6 +20,12 @@ function CasoDetail() {
     descripcion: '',
   });
 
+  const fetchMovimientos = useCallback(() => {
+    apiFetch(`/api/casos/${id}/movimientos`)
+      .then(data => setMovimientos(data))
+      .catch(error => console.error('Error al obtener movimientos del caso:', error));
+  }, [id]);
+
   useEffect(() => {
     // Obtener detalles del caso
     apiFetch(`/api/casos/${id}`)
@@ -40,13 +46,7 @@ function CasoDetail() {
 
     // Obtener movimientos del caso
     fetchMovimientos();
-  }, [id]);
-
-  const fetchMovimientos = () => {
-    apiFetch(`/api/casos/${id}/movimientos`)
-      .then(data => setMovimientos(data))
-      .catch(error => console.error('Error al obtener movimientos del caso:', error));
-  };
+  }, [id, fetchMovimientos]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
