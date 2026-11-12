@@ -37,7 +37,9 @@ def test_subir_documento_guarda_archivo_y_registro(client, db, tmp_path):
     assert data["nombre_archivo"] == "escrito.pdf"
     assert data["subido_por"] == 7
     assert data["tipo"] == "PRUEBA"
-    assert (tmp_path / "uploads" / "escrito.pdf").read_bytes() == b"%PDF-1.4"
+    archivos = list((tmp_path / "uploads").glob("*_escrito.pdf"))
+    assert len(archivos) == 1
+    assert archivos[0].read_bytes() == b"%PDF-1.4"
     assert db.query(Documento).count() == 1
 
 
@@ -45,7 +47,9 @@ def test_subir_sanea_el_nombre_del_archivo(client, tmp_path):
     resp = _subir(client, nombre="../../etc/passwd")
     assert resp.status_code == 201
     assert resp.get_json()["nombre_archivo"] == "etc_passwd"
-    assert os.listdir(tmp_path / "uploads") == ["etc_passwd"]
+    archivos = os.listdir(tmp_path / "uploads")
+    assert len(archivos) == 1
+    assert archivos[0].endswith("_etc_passwd")
 
 
 def test_subir_sin_archivo_devuelve_400(client):
@@ -68,19 +72,45 @@ def test_listar_descargar_y_eliminar(client, tmp_path):
     assert descarga.status_code == 200
     assert descarga.data == b"contenido"
     assert "attachment" in descarga.headers["Content-Disposition"]
+    assert "escrito.pdf" in descarga.headers["Content-Disposition"]
     descarga.close()
 
     assert client.delete(f"/{doc_id}", headers=H).status_code == 200
-    assert not (tmp_path / "uploads" / "escrito.pdf").exists()
+    assert len(os.listdir(tmp_path / "uploads")) == 0
     assert client.get(f"/{doc_id}", headers=H).status_code == 404
 
 
 def test_eliminar_tolera_archivo_ya_borrado(client, db, tmp_path):
     doc_id = _subir(client).get_json()["id_documento"]
-    os.remove(tmp_path / "uploads" / "escrito.pdf")
+    doc = db.get(Documento, doc_id)
+    os.remove(doc.ruta_storage)
     assert client.delete(f"/{doc_id}", headers=H).status_code == 200
     assert db.query(Documento).count() == 0
 
 
 def test_eliminar_inexistente_devuelve_404(client):
     assert client.delete("/999", headers=H).status_code == 404
+
+
+def test_dos_subidas_mismo_nombre_no_se_pisan_y_se_descargan_ambas(client, tmp_path):
+    resp1 = _subir(client, nombre="documento.pdf", contenido=b"primer_contenido")
+    assert resp1.status_code == 201
+    id1 = resp1.get_json()["id_documento"]
+
+    resp2 = _subir(client, nombre="documento.pdf", contenido=b"segundo_contenido")
+    assert resp2.status_code == 201
+    id2 = resp2.get_json()["id_documento"]
+
+    assert id1 != id2
+    archivos = os.listdir(tmp_path / "uploads")
+    assert len(archivos) == 2
+
+    descarga1 = client.get(f"/{id1}", headers=H)
+    assert descarga1.status_code == 200
+    assert descarga1.data == b"primer_contenido"
+    descarga1.close()
+
+    descarga2 = client.get(f"/{id2}", headers=H)
+    assert descarga2.status_code == 200
+    assert descarga2.data == b"segundo_contenido"
+    descarga2.close()
