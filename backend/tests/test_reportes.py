@@ -2,8 +2,10 @@
 import csv
 import datetime
 import io
+import warnings
 
 import pytest
+from sqlalchemy.exc import SAWarning
 
 from common.models import Causa, CausaParte, Documento, Movimiento, Parte, Tribunal, Usuario
 from conftest import auth_header, load_service
@@ -63,6 +65,20 @@ def test_reporte_casos_completo(client):
 def test_reporte_casos_filtra_por_tribunal_y_abogado(client):
     assert [f["rit"] for f in _csv(client.get("/casos?tribunal_id=2", headers=H))] == ["L-2"]
     assert [f["rit"] for f in _csv(client.get("/casos?abogado_id=1", headers=H))] == ["C-1"]
+
+
+def test_reporte_casos_sin_duplicados_ni_sawarning(client, db):
+    db.add(Parte(id_parte=2, nombre="Cliente 2", tipo="DEMANDADO"))
+    db.add(CausaParte(id_causa=1, id_parte=2, representado_por=1))
+    db.commit()
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", SAWarning)
+        resp = client.get("/casos", headers=H)
+
+    filas = _csv(resp)
+    rits = [f["rit"] for f in filas]
+    assert rits.count("C-1") == 1
 
 
 def test_reporte_vencimientos_solo_proximos_30_dias(client):
