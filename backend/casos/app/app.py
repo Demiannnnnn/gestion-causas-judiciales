@@ -181,7 +181,12 @@ def create_movimiento(current_user, id):
         if not caso:
             return jsonify({'error': 'Caso no encontrado'}), 404
         
-        data = request.json
+        data = request.get_json(silent=True)
+        if not data or not isinstance(data, dict):
+            return jsonify({'error': 'Cuerpo de la petición debe ser JSON'}), 400
+        
+        if not data.get('descripcion') or not data.get('tipo'):
+            return jsonify({'error': 'Faltan campos requeridos: descripcion y tipo'}), 400
         
         # Parsear fecha si viene como string
         fecha = data.get('fecha')

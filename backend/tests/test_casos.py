@@ -147,3 +147,22 @@ def test_movimiento_con_fecha_invalida_devuelve_400(client, db):
 def test_movimiento_en_caso_inexistente_devuelve_404(client):
     resp = client.post("/999/movimientos", headers=H, json={"descripcion": "x", "tipo": "OTRO"})
     assert resp.status_code == 404
+
+
+def test_crear_movimiento_sin_descripcion_o_tipo_devuelve_400(client, db):
+    resp_sin_tipo = client.post("/10/movimientos", headers=H, json={"descripcion": "Sin tipo"})
+    assert resp_sin_tipo.status_code == 400
+    assert "error" in resp_sin_tipo.get_json()
+
+    resp_sin_desc = client.post("/10/movimientos", headers=H, json={"tipo": "AUDIENCIA"})
+    assert resp_sin_desc.status_code == 400
+    assert "error" in resp_sin_desc.get_json()
+
+    assert db.query(Movimiento).count() == 0
+
+
+def test_crear_movimiento_body_no_json_devuelve_400(client, db):
+    resp = client.post("/10/movimientos", headers=H, data="no-json", content_type="text/plain")
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+    assert db.query(Movimiento).count() == 0
