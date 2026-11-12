@@ -97,10 +97,24 @@ def update_caso(current_user, id):
         if not caso:
             return jsonify({'error': 'Caso no encontrado'}), 404
         
-        data = request.json
+        data = request.get_json(silent=True) or {}
+
+        if 'fecha_inicio' in data:
+            fecha_val = data['fecha_inicio']
+            if isinstance(fecha_val, str):
+                try:
+                    caso.fecha_inicio = datetime.datetime.strptime(fecha_val, '%Y-%m-%d').date()
+                except ValueError:
+                    return jsonify({'error': 'Formato de fecha inválido. Usar YYYY-MM-DD'}), 400
+            elif isinstance(fecha_val, datetime.date):
+                caso.fecha_inicio = fecha_val
+            elif fecha_val is None:
+                caso.fecha_inicio = None
+            else:
+                return jsonify({'error': 'Formato de fecha inválido. Usar YYYY-MM-DD'}), 400
+
         caso.rit = data.get('rit', caso.rit)
         caso.tribunal_id = data.get('tribunal_id', caso.tribunal_id)
-        caso.fecha_inicio = data.get('fecha_inicio', caso.fecha_inicio)
         caso.estado = data.get('estado', caso.estado)
         caso.descripcion = data.get('descripcion', caso.descripcion)
         
