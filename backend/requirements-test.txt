@@ -1,0 +1,13 @@
+# Dependencias para ejecutar los tests unitarios del backend (sin MySQL ni Docker).
+Flask==3.0.0
+Flask-CORS==4.0.2
+SQLAlchemy==2.0.23
+PyJWT==2.8.0
+passlib==1.7.4
+bcrypt==3.2.2
+requests==2.31.0
+pandas
+reportlab
+docker==7.0.0
+psutil==5.9.6
+pytest==8.3.3
