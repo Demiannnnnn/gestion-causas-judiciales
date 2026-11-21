@@ -11,7 +11,7 @@ NC='\033[0m'
 clear
 echo -e "${BLUE}═══════════════════════════════════════════════${NC}"
 echo -e "${BLUE}   Sistema de Gestión de Causas Judiciales    ${NC}"
-echo -e "${BLUE}     Inicio Rápido con Configs Dinámicas      ${NC}"
+echo -e "${BLUE}     Inicio Asistido de Infraestructura       ${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════${NC}"
 echo ""
 
@@ -60,28 +60,13 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 echo ""
 
-# Paso 3: Generar configuraciones
-echo -e "${YELLOW}Paso 3: Generando archivos de configuración...${NC}"
-echo -e "${BLUE}Los contenedores Alpine procesarán los templates...${NC}"
-echo ""
-
-# Iniciar contenedores de configuración
-docker compose up -d config-init-prometheus config-init-redis config-init-proxysql config-init-traefik
-
-echo ""
-echo -e "${YELLOW}Esperando a que los contenedores de inicialización completen...${NC}"
-sleep 3
-
-# Mostrar logs
-echo ""
-echo -e "${BLUE}═══════════════════════════════════════════════${NC}"
-echo -e "${BLUE}        Logs de Inicialización                 ${NC}"
-echo -e "${BLUE}═══════════════════════════════════════════════${NC}"
-docker compose logs config-init-prometheus config-init-redis config-init-proxysql config-init-traefik
-echo -e "${BLUE}═══════════════════════════════════════════════${NC}"
-echo ""
-
-echo -e "${GREEN}✅ Configuraciones generadas exitosamente${NC}"
+# Paso 3: Verificar certificados TLS
+echo -e "${YELLOW}Paso 3: Verificando certificados TLS...${NC}"
+if [ ! -f db/certs/server-cert.pem ] || [ ! -f api-gateway/certs-local/cert.pem ]; then
+    echo -e "${YELLOW}Generando certificados TLS autofirmados...${NC}"
+    ./db/generate-certs.sh
+fi
+echo -e "${GREEN}✅ Certificados TLS listos${NC}"
 echo ""
 
 # Paso 4: Iniciar servicios de base de datos
@@ -133,6 +118,5 @@ echo -e "  Ver logs:             ${YELLOW}docker compose logs -f [servicio]${NC}
 echo -e "  Detener sistema:      ${YELLOW}docker compose down${NC}"
 echo -e "  Reiniciar servicio:   ${YELLOW}docker compose restart [servicio]${NC}"
 echo -e "  Ver estado:           ${YELLOW}docker compose ps${NC}"
-echo -e "  Gestionar configs:    ${YELLOW}./scripts/manage-configs.sh help${NC}"
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════${NC}"

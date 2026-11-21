@@ -95,6 +95,8 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
 .venv
 env/
 venv/
@@ -121,3 +123,35 @@ dmypy.json
 .pyre/
 __pycache__/backups/
 *.pyc
+
+# OS & Editor artifacts
+.DS_Store
+Thumbs.db
+*.bak
+*.swp
+*~
+*.conflicted-backup
+
+# TLS Certificates and Private Keys (generated via db/generate-certs.sh)
+*.pem
+*.key
+*.crt
+*.csr
+api-gateway/certs-local/
+db/certs/
+
+# Configurations containing plaintext credentials
+generated-config/proxysql.cnf
+
+# Database and file backups
+backups/
+*.sql.gz
+
+# Local test outputs, tokens, and scan dumps
+token.txt
+login_response.json
+response.json
+notificaciones.json
+*ReporteTrivy*.txt
+credentials*.json
+cloudflare/

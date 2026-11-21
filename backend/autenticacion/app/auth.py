@@ -7,8 +7,8 @@ from passlib.context import CryptContext
 # Se usará bcrypt como el algoritmo principal
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Configuración de JWT
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "El_Pescamelapixula"))
+# Configuración de JWT (requiere variable de entorno JWT_SECRET_KEY o SECRET_KEY)
+SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
 
@@ -24,8 +24,11 @@ def get_password_hash(password):
 
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=24)):
     """Crea un nuevo token de acceso JWT."""
+    secret_key = SECRET_KEY or os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY")
+    if not secret_key:
+        raise RuntimeError("JWT_SECRET_KEY o SECRET_KEY no está configurada en las variables de entorno.")
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=ALGORITHM)
     return encoded_jwt

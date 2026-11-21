@@ -215,13 +215,13 @@ docker-compose up -d --force-recreate <servicio>
 ### Base de datos
 ```bash
 # Verificar salud de la BD
-docker exec db-master mysqladmin ping -p***REMOVED***
+docker exec db-master mysqladmin ping -p"${MYSQL_ROOT_PASSWORD}"
 
 # Conectar a MySQL
-docker exec -it db-master mysql -uroot -p***REMOVED***
+docker exec -it db-master mysql -uroot -p"${MYSQL_ROOT_PASSWORD}"
 
 # Ver tablas
-docker exec db-master mysql -uroot -p***REMOVED*** -e "USE gestion_causas; SHOW TABLES;"
+docker exec db-master mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" -e "USE causas_judiciales_db; SHOW TABLES;"
 ```
 
 ### Backup y restauración

@@ -870,7 +870,7 @@ services:
     environment:
       - MYSQL_HOST=db-master
       - MYSQL_USER=root
-      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-***REMOVED***}
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE:-causas_judiciales_db}
       - BACKUP_RETENTION_DAYS=7
     volumes:

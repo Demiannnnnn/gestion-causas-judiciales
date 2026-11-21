@@ -121,8 +121,8 @@ Todos los servicios backend aplican rate limiting y security headers:
 ### Variables Gestionadas
 
 ```
-JWT_SECRET_KEY=deaa123
-CASOS_SECRET_KEY=***REMOVED***
+JWT_SECRET_KEY=<CHANGE_ME>
+CASOS_SECRET_KEY=<CHANGE_ME>
 REDIS_PASSWORD=<password>
 MYSQL_ROOT_PASSWORD=<password>
 MYSQL_PASSWORD=<password>

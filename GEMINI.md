@@ -27,7 +27,10 @@ Consiste en varios microservicios de Flask:
 - **`autenticacion`**: Gestiona el registro, inicio de sesión y autenticación de usuarios usando JWT.
 - **`casos`**: Lógica de negocio principal para la gestión de las causas judiciales.
 - **`documentos`**: Maneja la subida y gestión de archivos PDF asociados a las causas.
-- **`notificaciones`**: Envía notificaciones (posiblemente por email, a juzgar por la configuración).
+- **`notificaciones`**: Envía notificaciones por email (SMTP / MailHog).
+- **`reportes`**: Generación de estadísticas, exportación CSV y generación de PDFs.
+- **`ia-seguridad`**: Monitoreo y detección de anomalías con modelos de IA.
+- **`common`**: Módulo compartido con modelos SQLAlchemy, pools por rol y auth JWT.
 
 Cada microservicio tiene su propio `Dockerfile` y `requirements.txt`.
 
@@ -54,9 +57,8 @@ Cada microservicio tiene su propio `Dockerfile` y `requirements.txt`.
 - **Prometheus**: Recolecta métricas de los servicios.
 - **Grafana**: Permite visualizar las métricas recolectadas por Prometheus a través de dashboards.
 
-## 4. Historial de Cambios Recientes
+## 5. Reglas de Seguridad y Flujo Git
 
-### Corrección de error en `Casos.js`
-- **Problema**: La aplicación fallaba con un error `useState is not defined` en la consola del navegador.
-- **Causa**: Los hooks `useState` y `useEffect` de React se utilizaban en el componente `Casos.js` sin haber sido importados.
-- **Solución**: Se añadió la importación explícita `{ useState, useEffect }` desde la librería `'react'` en el archivo `frontend/src/components/Casos.js`.
+- **Variables de Entorno**: Secretos obligatorios solo por variables de entorno. `.env` nunca se versiona.
+- **Flujo Git**: Ramas `dev/*` hacia `develop-AGENTS`, nunca directo a `main` ni `develop`. Prohibido reescribir historia.
+

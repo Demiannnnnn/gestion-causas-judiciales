@@ -12,9 +12,9 @@ if [ -f "$(dirname "$0")/../.env" ]; then
 fi
 
 MYSQL_REPLICATION_USER="${MYSQL_REPLICATION_USER:-replicator}"
-MYSQL_REPLICATION_PASSWORD="${MYSQL_REPLICATION_PASSWORD:-***REMOVED***}"
+MYSQL_REPLICATION_PASSWORD="${MYSQL_REPLICATION_PASSWORD:?MYSQL_REPLICATION_PASSWORD must be set in .env}"
 MYSQL_MONITOR_USER="${MYSQL_MONITOR_USER:-monitor_user}"
-MYSQL_MONITOR_PASSWORD="${MYSQL_MONITOR_PASSWORD:-***REMOVED***}"
+MYSQL_MONITOR_PASSWORD="${MYSQL_MONITOR_PASSWORD:?MYSQL_MONITOR_PASSWORD must be set in .env}"
 
 echo "=========================================="
 echo "Actualizando permisos en contenedores"
