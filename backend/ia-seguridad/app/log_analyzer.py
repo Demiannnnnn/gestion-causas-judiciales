@@ -3,7 +3,7 @@ import google.generativeai as genai
 from openai import OpenAI
 import os
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 import re
 import time
 

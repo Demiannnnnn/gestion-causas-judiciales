@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 import os
 
 from common.database import db_manager
-from common.models import Causa, Tribunal, Parte, CausaParte, Movimiento
+from common.models import Causa, Tribunal, Movimiento
 from common.auth import token_required
 from common.logging_utils import get_logger
 

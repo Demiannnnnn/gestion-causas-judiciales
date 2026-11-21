@@ -40,6 +40,7 @@ function CasoDetail() {
 
     // Obtener movimientos del caso
     fetchMovimientos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchMovimientos = () => {
