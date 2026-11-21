@@ -3,12 +3,14 @@ set -e
 
 # Directorio donde se guardarán los certificados
 CERT_DIR="db/certs"
+GATEWAY_CERT_DIR="api-gateway/certs-local"
 
 # Días de validez para los certificados
 DAYS=365
 
-# Crear directorio si no existe
+# Crear directorios si no existen
 mkdir -p "$CERT_DIR"
+mkdir -p "$GATEWAY_CERT_DIR"
 
 echo "Generando certificados en el directorio $CERT_DIR..."
 
@@ -40,6 +42,13 @@ openssl x509 -req -in "$CERT_DIR/client-req.pem" -days "$DAYS" -CA "$CERT_DIR/ca
 rm "$CERT_DIR/server-req.pem"
 rm "$CERT_DIR/client-req.pem"
 
+# 7. Certificado y clave TLS local para API Gateway (Traefik)
+echo "Paso 7: Generando certificado TLS autofirmado para API Gateway ($GATEWAY_CERT_DIR)..."
+openssl req -x509 -newkey rsa:4096 -nodes -days "$DAYS" \
+    -keyout "$GATEWAY_CERT_DIR/key.pem" \
+    -out "$GATEWAY_CERT_DIR/cert.pem" \
+    -subj "/CN=localhost"
+
 echo ""
 echo "¡Certificados generados exitosamente!"
-ls -l "$CERT_DIR"
+ls -l "$CERT_DIR" "$GATEWAY_CERT_DIR"
