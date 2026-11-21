@@ -111,8 +111,15 @@ cd frontend && npm test -- --watchAll=false && npm run build
 
 ---
 
-## 5. Reglas de Higiene y Seguridad del Repositorio
+## 5. Reglas de Higiene, Convenciones y Flujo Git
 
-1. **Prohibido versionar secretos o llaves privadas**: Nunca hacer commit de `.env`, `*.pem`, `*.key`, `token.txt`, `login_response.json`, ni configuraciones renderizadas en `generated-config/` (`proxysql.cnf`, `redis.conf`, `prometheus.yml`, `traefik.yml`).
-2. **Prohibido hardcodear secretos en código fuente**: Los microservicios deben leer `JWT_SECRET_KEY`, `CASOS_SECRET_KEY` y `DATABASE_URL*` exclusivamente desde variables de entorno.
-3. **Prohibido versionar respaldos o artefactos temporales**: Los dumps SQL y archivos comprimidos bajo `backups/`, reportes temporales de escaneo y archivos `.DS_Store` / `*.bak` deben permanecer excluidos mediante `.gitignore`.
+1. **Seguridad e Higiene**:
+   - Secretos solo por variables de entorno (`.env` nunca se versiona).
+   - Prohibido commitear `*.pem`, `*.key`, `token.txt`, backups o `generated-config/`.
+2. **Convenciones de Código**:
+   - Python: PEP 8, snake_case para funciones/variables, PascalCase para clases.
+   - Frontend/JS: camelCase, componentes en PascalCase, ESLint limpio sin warnings.
+   - Commits: Conventional Commits en inglés (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`).
+3. **Flujo Git**:
+   - Trabajar en ramas `dev/*` con destino hacia `develop-AGENTS`.
+   - Prohibido push directo a `main` o `develop`. Prohibido reescribir historia.
