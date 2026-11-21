@@ -61,8 +61,8 @@ openssl rand -hex 32
 
 ## 4. Comandos Verificados de Inicialización, Arranque y Verificación
 
-### 4.1. Preparación de Entorno, Certificados TLS y Archivos Generados
-Los certificados TLS (`*.pem`) y archivos de configuración generados (`generated-config/proxysql.cnf`, `redis.conf`, `prometheus.yml`, `traefik.yml`) **no se versionan en Git** por seguridad. Para generarlos localmente:
+### 4.1. Preparación de Entorno y Certificados TLS
+Los certificados TLS (`*.pem`, `*.key`) y archivos con credenciales en texto plano (`generated-config/proxysql.cnf`) **no se versionan en Git** por seguridad. Las configuraciones de servicios (`generated-config/traefik.yml`, `generated-config/redis.conf`, `generated-config/prometheus.yml` y `generated-config/dynamic-config.yml`) se encuentran versionadas en el repositorio sin secretos. Para preparar el entorno localmente:
 
 ```bash
 # 1. Crear archivo .env desde la plantilla y configurar secretos
@@ -77,11 +77,11 @@ cp .env.example .env
 
 ### 4.2. Arranque del Sistema con Docker Compose
 ```bash
-# Inicio asistido (valida .env, inicializa configs y levanta servicios)
+# Inicio asistido (valida .env, verifica certificados TLS y levanta base de datos y servicios)
 ./start.sh
 
 # O manualmente con Docker Compose:
-docker compose up -d
+docker compose up -d db-init db-master && docker compose up -d
 ```
 
 ### 4.3. Verificación de Sintaxis, Build y Tests Locales
@@ -115,7 +115,7 @@ cd frontend && npm test -- --watchAll=false && npm run build
 
 1. **Seguridad e Higiene**:
    - Secretos solo por variables de entorno (`.env` nunca se versiona).
-   - Prohibido commitear `*.pem`, `*.key`, `token.txt`, backups o `generated-config/`.
+   - Prohibido commitear `*.pem`, `*.key`, `token.txt`, backups o `generated-config/proxysql.cnf`.
 2. **Convenciones de Código**:
    - Python: PEP 8, snake_case para funciones/variables, PascalCase para clases.
    - Frontend/JS: camelCase, componentes en PascalCase, ESLint limpio sin warnings.
