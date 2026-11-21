@@ -1,4 +1,5 @@
 import os
+from uuid import uuid4
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from common.database import db_manager
@@ -32,9 +33,10 @@ def upload_documento(current_user, id_causa):
 
     if file:
         filename = secure_filename(file.filename)
+        storage_filename = f"{uuid4().hex}_{filename}"
         if not os.path.exists(app.config['UPLOAD_FOLDER']):
             os.makedirs(app.config['UPLOAD_FOLDER'])
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], storage_filename)
         file.save(filepath)
 
         with db_manager.get_session(role=current_user.get('rol')) as session:
@@ -72,6 +74,7 @@ def descargar_documento(current_user, id_documento):
         return send_from_directory(
             directorio,
             nombre_archivo,
+            download_name=documento.nombre_archivo,
             as_attachment=True
         )
 

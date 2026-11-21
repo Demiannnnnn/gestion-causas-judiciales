@@ -77,7 +77,7 @@ def reporte_casos(current_user):
             if abogado_id:
                 query = query.filter(CausaParte.representado_por == abogado_id)
             
-            casos_data = query.distinct(Causa.id_causa).all()
+            casos_data = query.distinct().all()
 
             report_data = []
             for rit, estado, fecha_inicio, nombre_tribunal, nombre_abogado in casos_data:

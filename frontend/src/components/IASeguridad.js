@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import './IASeguridad.css';
 
@@ -14,29 +14,7 @@ function IASeguridad() {
   const [loading, setLoading] = useState(true);
   const { token } = useAuth();
 
-  useEffect(() => {
-    fetchData();
-    // Actualizar cada 30 segundos
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, [token]); // Add token to dependency array just in case
-
-  const fetchData = async () => {
-    if (!token) return; // Don't fetch if no token
-    try {
-      await Promise.all([
-        fetchAlerts(),
-        fetchSystemStats(),
-        fetchContainerHealth()
-      ]);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setLoading(false);
-    }
-  };
-
-  const fetchAlerts = async () => {
+  const fetchAlerts = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/alerts?status=open`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -49,9 +27,9 @@ function IASeguridad() {
     } catch (error) {
       console.error('Error fetching alerts:', error);
     }
-  };
+  }, [token]);
 
-  const fetchSystemStats = async () => {
+  const fetchSystemStats = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/stats/system`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -64,9 +42,9 @@ function IASeguridad() {
     } catch (error) {
       console.error('Error fetching system stats:', error);
     }
-  };
+  }, [token]);
 
-  const fetchContainerHealth = async () => {
+  const fetchContainerHealth = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/stats/containers`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -79,7 +57,29 @@ function IASeguridad() {
     } catch (error) {
       console.error('Error fetching container health:', error);
     }
-  };
+  }, [token]);
+
+  const fetchData = useCallback(async () => {
+    if (!token) return; // Don't fetch if no token
+    try {
+      await Promise.all([
+        fetchAlerts(),
+        fetchSystemStats(),
+        fetchContainerHealth()
+      ]);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setLoading(false);
+    }
+  }, [token, fetchAlerts, fetchSystemStats, fetchContainerHealth]);
+
+  useEffect(() => {
+    fetchData();
+    // Actualizar cada 30 segundos
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   const analyzeAllLogs = async () => {
     setAnalyzing(true);

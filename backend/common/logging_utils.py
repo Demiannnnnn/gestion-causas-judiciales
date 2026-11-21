@@ -28,12 +28,14 @@ def get_logger(name, level=logging.INFO):
     Returns a logger configured to output JSON to stdout.
     """
     logger = logging.getLogger(name)
-    
-    # If logger is already configured, don't add handlers again
-    if logger.hasHandlers():
-        return logger
-        
     logger.setLevel(level)
+    
+    # If logger already has a JsonFormatter handler, don't add handlers again
+    if any(isinstance(h.formatter, JsonFormatter) for h in logger.handlers):
+        return logger
+
+    # Evitar duplicar logs en stdout/stderr si root u otro ancestro tiene handlers configurados
+    logger.propagate = False
 
     handler = logging.StreamHandler(sys.stdout)
     formatter = JsonFormatter()
