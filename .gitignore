@@ -140,11 +140,8 @@ Thumbs.db
 api-gateway/certs-local/
 db/certs/
 
-# Generated service configurations (generated from templates via scripts/init-*.sh)
+# Configurations containing plaintext credentials
 generated-config/proxysql.cnf
-generated-config/redis.conf
-generated-config/prometheus.yml
-generated-config/traefik.yml
 
 # Database and file backups
 backups/

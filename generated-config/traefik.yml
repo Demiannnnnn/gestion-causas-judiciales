@@ -1,0 +1,43 @@
+api:
+  insecure: true
+  dashboard: true
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: default
+
+tls:
+  certificates:
+    - certFile: /certs/cert.pem
+      keyFile: /certs/key.pem
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: licitacion_sistemacausasjudiciales_backend-network
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+log:
+  level: INFO
+
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+
+serversTransport:
+  forwardingTimeouts:
+    dialTimeout: 180s
+    responseHeaderTimeout: 180s
+    idleConnTimeout: 180s
