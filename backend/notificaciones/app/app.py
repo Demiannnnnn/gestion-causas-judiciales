@@ -328,8 +328,8 @@ def get_stats():
     try:
         with db_manager.get_session() as session:
             total = session.query(Notificacion).count()
-            enviadas = session.query(Notificacion).filter_by(estado="enviado").count()
-            errores = session.query(Notificacion).filter_by(estado="error").count()
+            enviadas = session.query(Notificacion).filter_by(estado="ENVIADA").count()
+            errores = session.query(Notificacion).filter_by(estado="ERROR").count()
             leidas = session.query(Notificacion).filter_by(leido=True).count()
             no_leidas = total - leidas
 
