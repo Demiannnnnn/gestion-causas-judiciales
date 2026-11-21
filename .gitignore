@@ -156,3 +156,5 @@ login_response.json
 response.json
 notificaciones.json
 *ReporteTrivy*.txt
+credentials*.json
+cloudflare/
