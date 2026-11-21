@@ -24,7 +24,7 @@ Promueve el slave a master cuando el master original falla.
 
 **Uso:**
 ```bash
-export MYSQL_ROOT_PASSWORD="***REMOVED***"
+export MYSQL_ROOT_PASSWORD="<CHANGE_ME>"
 ./scripts/failover-promote-slave.sh
 ```
 
@@ -47,9 +47,9 @@ Restaura db-master como master principal.
 
 **Uso:**
 ```bash
-export MYSQL_ROOT_PASSWORD="***REMOVED***"
+export MYSQL_ROOT_PASSWORD="<CHANGE_ME>"
 export MYSQL_REPLICATION_USER="***REMOVED***"
-export MYSQL_REPLICATION_PASSWORD="***REMOVED***"
+export MYSQL_REPLICATION_PASSWORD="<CHANGE_ME>"
 ./scripts/failback-restore-master.sh
 ```
 
@@ -125,7 +125,7 @@ SELECT @@hostname, @@port, @@read_only, NOW();
 
 ### 3. Replicación activa
 ```bash
-docker exec db-slave mysql -uroot -p"***REMOVED***" -e "SHOW SLAVE STATUS\G" | grep -E "Slave_IO_Running|Slave_SQL_Running|Seconds_Behind_Master"
+docker exec db-slave mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" -e "SHOW SLAVE STATUS\G" | grep -E "Slave_IO_Running|Slave_SQL_Running|Seconds_Behind_Master"
 ```
 
 **Esperado:**

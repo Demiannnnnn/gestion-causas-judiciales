@@ -57,19 +57,19 @@ GRANT REPLICATION CLIENT, SELECT, SUPER, REPLICATION SLAVE ON *.*
 ### Monitor (solo lectura + operaciones de failover)
 ```
 MYSQL_MONITOR_USER=monitor_user
-MYSQL_MONITOR_PASSWORD=***REMOVED***
+MYSQL_MONITOR_PASSWORD=<CHANGE_ME>
 ```
 
 ### Replicación (para failover/failback)
 ```
 MYSQL_REPLICATION_USER=replicator
-MYSQL_REPLICATION_PASSWORD=***REMOVED***
+MYSQL_REPLICATION_PASSWORD=<CHANGE_ME>
 ```
 
 ### ProxySQL Admin
 ```
 PROXYSQL_ADMIN_USER=admin
-PROXYSQL_ADMIN_PASSWORD=admin
+PROXYSQL_ADMIN_PASSWORD=<CHANGE_ME>
 ```
 
 ## Beneficios de Seguridad

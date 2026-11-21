@@ -6,7 +6,7 @@ echo "Redis Config Generator"
 echo "==========================================="
 
 # Variables con valores por defecto
-REDIS_PASSWORD=${REDIS_PASSWORD:-***REMOVED***}
+REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}
 MAX_MEMORY=${REDIS_MAX_MEMORY:-256mb}
 DATABASES=${REDIS_DATABASES:-16}
 

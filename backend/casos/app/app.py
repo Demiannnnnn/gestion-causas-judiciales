@@ -13,7 +13,7 @@ from common.logging_utils import get_logger
 logger = get_logger(__name__)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ThatWasEpic')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or os.environ.get('CASOS_SECRET_KEY')
 CORS(app)  # Habilitar CORS para todas las rutas
 
 # Endpoint para obtener todos los casos
